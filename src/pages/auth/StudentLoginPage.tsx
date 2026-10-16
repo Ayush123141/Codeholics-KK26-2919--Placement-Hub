@@ -8,12 +8,19 @@ import { useAuth } from '@/lib/auth/AuthContext';
 
 export const StudentLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, isAuthenticated, role } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // If already logged in as STUDENT, automatically redirect to dashboard
+  React.useEffect(() => {
+    if (isAuthenticated && role === 'STUDENT') {
+      navigate('/student', { replace: true });
+    }
+  }, [isAuthenticated, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +33,7 @@ export const StudentLoginPage: React.FC = () => {
 
     const res = await login(email, password, 'STUDENT');
     if (res.success) {
-      navigate('/student');
+      navigate('/student', { replace: true });
     } else {
       setErrorMessage(res.error || 'Authentication failed. Please verify your credentials.');
     }

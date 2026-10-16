@@ -1,4 +1,4 @@
-import { CandidateFitScore, EvidenceRecord, SkillMatch } from '../types';
+import { SkillMatch } from './skillNormalizer';
 
 export const MATCHING_POLICY_VERSION = 'v1';
 
@@ -7,21 +7,40 @@ export interface MatchingPolicyOptions {
   preferredWeight?: number; // default: 20
 }
 
-/**
- * Pure, deterministic matching calculation service adhering strictly to Section 4.5 & Section 5 contracts:
- * - Requires at least one required skill; returns error otherwise.
- * - Required skills = 80%, Preferred skills = 20%.
- * - If no preferred skills in JD, required skills weight = 100%.
- * - Evidence strength calculated per skill from verified assessments, project evaluations, GitHub findings, and certificates.
- * - Explanations link directly to matched skills, partial skills, and missing evidence gaps.
- * - Describes score as job fit under a documented policy, never as hiring probability.
- */
+export interface CandidateFitScore {
+  studentId: string;
+  fitScore: number;
+  matchedSkills: string[];
+  partialEvidenceSkills: string[];
+  noEvidenceSkills: string[];
+  preferredMatchedSkills: string[];
+  preferredGapSkills: string[];
+  explanation: string;
+  evidenceRefs: string[];
+  scoreBreakdown: {
+    requiredWeight: number;
+    requiredScore: number;
+    preferredWeight: number;
+    preferredScore: number;
+    finalWeighted: number;
+  };
+}
+
+export interface SimpleEvidence {
+  id: string;
+  skillId: string;
+  title: string;
+  sourceType?: 'assessment' | 'project_eval' | 'github_repo' | 'certificate' | string;
+  reviewStatus?: string;
+  score?: number;
+}
+
 export class MatchingPolicyService {
   public calculateCandidateFit(
     studentId: string,
     requiredSkills: SkillMatch[],
     preferredSkills: SkillMatch[],
-    studentEvidence: EvidenceRecord[],
+    studentEvidence: SimpleEvidence[],
     options?: MatchingPolicyOptions
   ): CandidateFitScore {
     if (!requiredSkills || requiredSkills.length === 0) {
@@ -131,10 +150,7 @@ export class MatchingPolicyService {
     };
   }
 
-  /**
-   * Deterministically score evidence for a single skill based on verification status & source
-   */
-  public evaluateSkillEvidenceScore(evidences: EvidenceRecord[]): number {
+  public evaluateSkillEvidenceScore(evidences: SimpleEvidence[]): number {
     if (!evidences || evidences.length === 0) return 0;
 
     let highestScore = 0;
@@ -142,7 +158,6 @@ export class MatchingPolicyService {
     for (const ev of evidences) {
       let score = 0;
 
-      // Base weight by source
       if (ev.sourceType === 'assessment') {
         score = ev.score !== undefined ? ev.score : 80;
       } else if (ev.sourceType === 'project_eval') {
@@ -155,11 +170,10 @@ export class MatchingPolicyService {
         } else if (ev.reviewStatus === 'MANUALLY_REVIEWED') {
           score = 75;
         } else {
-          score = 50; // Needs review
+          score = 50;
         }
       }
 
-      // Modifier for verified status
       if (ev.reviewStatus === 'CONTRADICTED' || ev.reviewStatus === 'UNVERIFIABLE') {
         score = 0;
       }

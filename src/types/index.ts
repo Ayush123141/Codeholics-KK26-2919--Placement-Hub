@@ -12,6 +12,7 @@ export interface UserProfile {
   graduationYear?: number;
   cgpa?: number;
   companyName?: string;
+  headline?: string;
 }
 
 export type EvidenceStatus = 

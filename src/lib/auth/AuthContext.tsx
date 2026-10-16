@@ -13,7 +13,7 @@ interface AuthContextType {
   login: (email: string, pass: string, targetRole: UserRole) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   switchRole: (role: UserRole) => void;
-  registerStudent: (data: Partial<UserProfile> & { password?: string }) => Promise<{ success: boolean; error?: string }>;
+  registerStudent: (data: Partial<UserProfile> & { password?: string; skills?: string[] }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,19 +28,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Fallback
     }
-    // Default to student demo user for smooth evaluation
-    return DEMO_USERS.student;
+    return null;
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Sync Supabase Auth Session on mount and keep updated on state changes
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+    async function initAuth() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle();
+
+            const role = (profile?.role || session.user.user_metadata?.role || 'STUDENT') as UserRole;
+            const user: UserProfile = {
+              id: session.user.id,
+              name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Candidate',
+              email: session.user.email || '',
+              role,
+              college: profile?.college || 'TechSummit Institute of Technology',
+              degree: profile?.degree || 'B.Tech in Computer Science & Engineering',
+              department: profile?.department || 'Computer Science',
+              graduationYear: profile?.cohort_year || 2026,
+              cgpa: profile?.cgpa || 8.85,
+            };
+            setCurrentUser(user);
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Supabase session retrieval warning:', e);
+        }
+      }
+
+      // Check local storage fallback if Supabase had no active session
+      try {
+        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (stored) {
+          setCurrentUser(JSON.parse(stored));
+        }
+      } catch {}
+
+      setIsLoading(false);
     }
-  }, [currentUser]);
+
+    initAuth();
+
+    // Listen to Supabase auth events
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      const { data: authListener } = client.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+        } else if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          const { data: profile } = await client
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          const role = (profile?.role || session.user.user_metadata?.role || 'STUDENT') as UserRole;
+          const user: UserProfile = {
+            id: session.user.id,
+            name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Candidate',
+            email: session.user.email || '',
+            role,
+            college: profile?.college || 'TechSummit Institute of Technology',
+            degree: profile?.degree || 'B.Tech in Computer Science & Engineering',
+            department: profile?.department || 'Computer Science',
+            graduationYear: profile?.cohort_year || 2026,
+            cgpa: profile?.cgpa || 8.85,
+          };
+          setCurrentUser(user);
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+        }
+      });
+
+      return () => {
+        authListener.subscription.unsubscribe();
+      };
+    }
+  }, []);
 
   const login = async (
     email: string,
@@ -50,36 +126,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
 
     try {
-      // If live Supabase is configured, attempt real auth
       if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pass });
         if (error) {
           setIsLoading(false);
           return { success: false, error: error.message };
         }
 
-        // Fetch user profile from public.profiles
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
-        const role = profile?.role || 'STUDENT';
+        const role = (profile?.role || data.user.user_metadata?.role || 'STUDENT') as UserRole;
 
-        // Enforce role authorization
         if (role !== targetRole) {
           await supabase.auth.signOut();
           setIsLoading(false);
           return {
             success: false,
-            error: `Access Denied: This account is registered as a ${role.replace('_', ' ')}. You cannot log in through the ${targetRole.replace('_', ' ')} portal.`,
+            error: `Access Denied: This account is registered as a ${role.replace('_', ' ')}. Please use the ${role === 'STUDENT' ? 'Student' : 'Placement Officer'} login portal.`,
           };
         }
 
         const user: UserProfile = {
           id: data.user.id,
-          name: profile?.full_name || email.split('@')[0],
+          name: profile?.full_name || data.user.user_metadata?.full_name || email.split('@')[0],
           email: data.user.email || email,
           role,
           college: profile?.college || 'TechSummit Institute of Technology',
@@ -90,19 +163,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         setCurrentUser(user);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
         setIsLoading(false);
         return { success: true };
       }
 
-      // Offline / Hackathon Demo Authentication
-      // Simulated role accounts:
-      const studentEmails = ['student@proofhire.edu', 'alex.morgan@techsummit.edu', 'alex.chen@proofhire.edu', 'student'];
-      const officerEmails = ['officer@proofhire.edu', 'placements@techsummit.edu', 'ramesh@proofhire.edu', 'officer'];
-      const recruiterEmails = ['recruiter@cloudscale.io', 'sarah@cloudscale.io', 'recruiter'];
-
+      // Offline / Demo Accounts
       const normEmail = email.toLowerCase().trim();
+      const officerEmails = ['officer@proofhire.edu', 'placements@techsummit.edu', 'ramesh@proofhire.edu', 'officer'];
 
-      // Check role mismatch
       if (targetRole === 'STUDENT' && officerEmails.some(e => normEmail.includes(e))) {
         setIsLoading(false);
         return {
@@ -111,20 +180,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      if (targetRole === 'PLACEMENT_OFFICER' && studentEmails.some(e => normEmail.includes(e))) {
-        setIsLoading(false);
-        return {
-          success: false,
-          error: 'Access Denied: Student accounts cannot access the Placement Officer administration workspace.',
-        };
-      }
-
       if (targetRole === 'STUDENT') {
         const studentUser: UserProfile = {
           ...DEMO_USERS.student,
-          email: normEmail.includes('@') ? normEmail : 'alex.morgan@techsummit.edu',
+          email: normEmail.includes('@') ? normEmail : 'student@proofhire.edu',
         };
         setCurrentUser(studentUser);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(studentUser));
         setIsLoading(false);
         return { success: true };
       }
@@ -135,16 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: normEmail.includes('@') ? normEmail : 'placements@techsummit.edu',
         };
         setCurrentUser(officerUser);
-        setIsLoading(false);
-        return { success: true };
-      }
-
-      if (targetRole === 'COMPANY_RECRUITER') {
-        const recruiterUser: UserProfile = {
-          ...DEMO_USERS.company,
-          email: normEmail.includes('@') ? normEmail : 's.jenkins@cloudscale.io',
-        };
-        setCurrentUser(recruiterUser);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(officerUser));
         setIsLoading(false);
         return { success: true };
       }
@@ -163,15 +216,106 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setCurrentUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem('proofhire_token');
+    sessionStorage.removeItem('proofhire_user');
   };
 
-  const registerStudent = async (data: Partial<UserProfile> & { password?: string }) => {
+  const registerStudent = async (data: Partial<UserProfile> & { password?: string; skills?: string[] }) => {
     setIsLoading(true);
+    const candidateEmail = (data.email || '').trim();
+    const candidatePassword = data.password || 'Student@123';
+    const candidateName = (data.name || '').trim();
+
     try {
-      const newUser: UserProfile = {
+      if (isSupabaseConfigured && supabase) {
+        // 1. Sign up directly with Supabase Auth
+        let userId: string | null = null;
+
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: candidateEmail,
+          password: candidatePassword,
+          options: {
+            data: {
+              full_name: candidateName,
+              role: 'STUDENT',
+              department: data.department || 'Computer Science',
+              cohort_year: data.graduationYear || 2026,
+            },
+          },
+        });
+
+        if (authError) {
+          const msg = authError.message.toLowerCase();
+          // If already registered, attempt to log in with provided password
+          if (msg.includes('already') || msg.includes('registered')) {
+            const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+              email: candidateEmail,
+              password: candidatePassword,
+            });
+            if (loginErr) {
+              setIsLoading(false);
+              return { success: false, error: `Account already exists: ${loginErr.message}` };
+            }
+            userId = loginData.user.id;
+          } else {
+            setIsLoading(false);
+            return { success: false, error: authError.message };
+          }
+        } else if (authData?.user) {
+          userId = authData.user.id;
+        }
+
+        if (userId) {
+          // 2. Upsert profile directly into Supabase public.profiles
+          const profilePayload = {
+            id: userId,
+            email: candidateEmail,
+            full_name: candidateName,
+            role: 'STUDENT',
+            department: data.department || 'Computer Science',
+            cohort_year: data.graduationYear || 2026,
+            headline: `${data.degree || 'B.Tech'} - ${data.college || 'TechSummit'}`,
+            updated_at: new Date().toISOString(),
+          };
+
+          try {
+            await supabase.from('profiles').upsert(profilePayload);
+          } catch (upsertWarn) {
+            console.warn('Profile upsert notice:', upsertWarn);
+          }
+
+          // 3. Confirm profile by fetching directly from Supabase
+          const { data: verifiedProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+
+          const candidateProfile: UserProfile = {
+            id: userId,
+            name: verifiedProfile?.full_name || candidateName,
+            email: verifiedProfile?.email || candidateEmail,
+            role: 'STUDENT',
+            college: data.college || 'TechSummit Institute of Technology',
+            degree: data.degree || 'B.Tech in Computer Science & Engineering',
+            department: verifiedProfile?.department || data.department || 'Computer Science',
+            graduationYear: verifiedProfile?.cohort_year || data.graduationYear || 2026,
+            cgpa: data.cgpa || 8.5,
+            avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+          };
+
+          setCurrentUser(candidateProfile);
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(candidateProfile));
+          setIsLoading(false);
+          return { success: true };
+        }
+      }
+
+      // Offline / Local fallback if Supabase not configured
+      const fallbackUser: UserProfile = {
         id: `student-${Date.now()}`,
-        name: data.name || 'New Student',
-        email: data.email || 'student@proofhire.edu',
+        name: candidateName || 'New Student',
+        email: candidateEmail || 'student@proofhire.edu',
         role: 'STUDENT',
         college: data.college || 'TechSummit Institute of Technology',
         degree: data.degree || 'B.Tech in Computer Science & Engineering',
@@ -181,7 +325,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
       };
 
-      setCurrentUser(newUser);
+      setCurrentUser(fallbackUser);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(fallbackUser));
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {
@@ -192,8 +337,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchRole = (newRole: UserRole) => {
     if (newRole === 'STUDENT') setCurrentUser(DEMO_USERS.student);
-    else if (newRole === 'PLACEMENT_OFFICER') setCurrentUser(DEMO_USERS.placement);
-    else setCurrentUser(DEMO_USERS.company);
+    else setCurrentUser(DEMO_USERS.placement);
   };
 
   return (

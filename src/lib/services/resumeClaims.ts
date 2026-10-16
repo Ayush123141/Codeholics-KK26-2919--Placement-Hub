@@ -1,19 +1,38 @@
 import { skillNormalizer } from './skillNormalizer';
-import { EvidenceRecord, ResumeBullet, ResumeClaimVerification } from '../types';
+
+export interface ResumeBullet {
+  id: string;
+  text: string;
+  skillIds: string[];
+  evidenceIds: string[];
+}
+
+export interface ResumeClaimVerification {
+  claimText: string;
+  extractedSkills: string[];
+  status: 'SUPPORTED' | 'NEEDS_REVIEW' | 'CONTRADICTED';
+  reason: string;
+  matchingEvidenceIds: string[];
+}
+
+export interface EvidenceRecordItem {
+  id: string;
+  skillId: string;
+  title: string;
+  sourceType?: string;
+  reviewStatus?: string;
+  score?: number;
+  description?: string;
+}
 
 export class ResumeClaimsService {
-  /**
-   * Generates tailored ATS-friendly resume bullets ONLY from structured profile data and verified evidence.
-   * Every bullet is explicitly linked to one or more evidence IDs.
-   */
   public generateTruthfulBullets(
     _studentId: string,
-    evidenceRecords: EvidenceRecord[],
+    evidenceRecords: EvidenceRecordItem[],
     targetSkills?: string[]
   ): ResumeBullet[] {
     const bullets: ResumeBullet[] = [];
 
-    // Filter evidence if target skills requested
     const targetSet = targetSkills ? new Set(targetSkills.map((s) => s.toLowerCase())) : null;
     const applicableEvidence = targetSet
       ? evidenceRecords.filter((e) => targetSet.has(e.skillId.toLowerCase()))
@@ -54,15 +73,9 @@ export class ResumeClaimsService {
     return bullets;
   }
 
-  /**
-   * Reviews candidate claims from uploaded resume text.
-   * Strictly adheres to non-negotiable rule:
-   * Missing evidence means NEEDS_REVIEW, NEVER CONTRADICTED or falsely accusing the candidate of lying.
-   * Only mark CONTRADICTED if an explicit contradictory record exists (e.g., failed verification, refuted credential).
-   */
   public verifyResumeClaim(
     claimText: string,
-    studentEvidence: EvidenceRecord[]
+    studentEvidence: EvidenceRecordItem[]
   ): ResumeClaimVerification {
     const extracted = skillNormalizer.extractSkillsFromText(claimText);
     const extractedSkillIds = extracted.map((e) => e.skillId);
@@ -77,7 +90,7 @@ export class ResumeClaimsService {
       };
     }
 
-    const matchingEvidence: EvidenceRecord[] = [];
+    const matchingEvidence: EvidenceRecordItem[] = [];
     let hasContradiction = false;
     let contradictionReason = '';
 
@@ -123,7 +136,6 @@ export class ResumeClaimsService {
       };
     }
 
-    // Default when no verified evidence is recorded
     return {
       claimText,
       extractedSkills: extracted.map((e) => e.canonicalName),
@@ -134,12 +146,9 @@ export class ResumeClaimsService {
     };
   }
 
-  /**
-   * Split uploaded resume text into discrete claims and review each
-   */
   public reviewResumeText(
     resumeText: string,
-    studentEvidence: EvidenceRecord[]
+    studentEvidence: EvidenceRecordItem[]
   ): {
     totalClaims: number;
     supportedCount: number;
@@ -147,7 +156,6 @@ export class ResumeClaimsService {
     contradictedCount: number;
     claims: ResumeClaimVerification[];
   } {
-    // Split into sentences / bullet lines
     const rawLines = resumeText
       .split(/[\r\n]+|[•\-\*]\s+/)
       .map((l) => l.trim())

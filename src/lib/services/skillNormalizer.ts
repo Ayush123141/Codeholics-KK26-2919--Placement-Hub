@@ -1,5 +1,18 @@
-import { CANONICAL_SKILLS } from '../modules/skills/skillCatalogue';
-import { CanonicalSkill, ParsedJobSkills, SkillMatch } from '../types';
+import { CANONICAL_SKILLS, CanonicalSkill } from './skillCatalogue';
+
+export interface SkillMatch {
+  skillId: string;
+  canonicalName: string;
+  sourceText: string;
+}
+
+export interface ParsedJobSkills {
+  jobId?: string;
+  requiredSkills: SkillMatch[];
+  preferredSkills: SkillMatch[];
+  unmatchedTokens: string[];
+  needsOfficerReview: boolean;
+}
 
 export class SkillNormalizer {
   private aliasMap: Map<string, CanonicalSkill>;
@@ -11,9 +24,7 @@ export class SkillNormalizer {
 
   private buildAliasMap(): void {
     for (const skill of CANONICAL_SKILLS) {
-      // Map primary name
       this.aliasMap.set(this.normalizeToken(skill.name), skill);
-      // Map aliases
       for (const alias of skill.aliases) {
         this.aliasMap.set(this.normalizeToken(alias), skill);
       }
@@ -28,9 +39,6 @@ export class SkillNormalizer {
       .replace(/\s+/g, ' ');
   }
 
-  /**
-   * Safe token-aware skill lookup against the canonical catalog
-   */
   public matchSkill(token: string): SkillMatch | null {
     const normalized = this.normalizeToken(token);
     if (!normalized) return null;
@@ -46,20 +54,15 @@ export class SkillNormalizer {
     return null;
   }
 
-  /**
-   * Extract skills from unstructured text using token-aware matching & boundaries
-   */
   public extractSkillsFromText(text: string): SkillMatch[] {
     const results: Map<string, SkillMatch> = new Map();
     const cleanText = text.replace(/[\r\n\t]/g, ' ');
 
-    // Sort aliases by length descending to match multi-word phrases first (e.g. "REST API" before "REST")
     const aliasesSorted = Array.from(this.aliasMap.entries()).sort(
       (a, b) => b[0].length - a[0].length
     );
 
     for (const [alias, skill] of aliasesSorted) {
-      // Use boundary checking that accounts for programming terms (.js, c++, c#, etc.)
       const escaped = alias.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
       const regex = new RegExp(`(?:^|[^a-zA-Z0-9_#+])${escaped}(?:$|[^a-zA-Z0-9_#+])`, 'i');
 
@@ -77,9 +80,6 @@ export class SkillNormalizer {
     return Array.from(results.values());
   }
 
-  /**
-   * Parse structured JD requirements or extract from text sections
-   */
   public parseJobSkills(
     input: {
       jobId?: string;
@@ -93,14 +93,12 @@ export class SkillNormalizer {
     const preferredSkillsMap = new Map<string, SkillMatch>();
     const unmatchedTokens: string[] = [];
 
-    // Parse required items
     if (input.requiredList && input.requiredList.length > 0) {
       for (const item of input.requiredList) {
         const match = this.matchSkill(item);
         if (match) {
           requiredSkillsMap.set(match.skillId, match);
         } else {
-          // Fallback to text extraction
           const extracted = this.extractSkillsFromText(item);
           if (extracted.length > 0) {
             extracted.forEach((m) => requiredSkillsMap.set(m.skillId, m));
@@ -114,7 +112,6 @@ export class SkillNormalizer {
       extracted.forEach((m) => requiredSkillsMap.set(m.skillId, m));
     }
 
-    // Parse preferred items
     if (input.preferredList && input.preferredList.length > 0) {
       for (const item of input.preferredList) {
         const match = this.matchSkill(item);

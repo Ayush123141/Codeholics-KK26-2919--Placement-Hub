@@ -8,12 +8,19 @@ import { useAuth } from '@/lib/auth/AuthContext';
 
 export const PlacementLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, isAuthenticated, role } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // If already logged in as PLACEMENT_OFFICER, automatically redirect to dashboard
+  React.useEffect(() => {
+    if (isAuthenticated && role === 'PLACEMENT_OFFICER') {
+      navigate('/placement', { replace: true });
+    }
+  }, [isAuthenticated, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +33,7 @@ export const PlacementLoginPage: React.FC = () => {
 
     const res = await login(email, password, 'PLACEMENT_OFFICER');
     if (res.success) {
-      navigate('/placement');
+      navigate('/placement', { replace: true });
     } else {
       setErrorMessage(res.error || 'Authentication failed. Please verify your administrative credentials.');
     }
