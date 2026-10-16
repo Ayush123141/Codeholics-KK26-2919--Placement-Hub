@@ -47,6 +47,7 @@ export const StudentRegisterPage: React.FC = () => {
   const { showToast } = useToast();
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Basic info, 2: Upload & Extraction, 3: Editable Review
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Step 1: Basic Account Info (NO GitHub required!)
   const [name, setName] = useState('');
@@ -178,21 +179,35 @@ export const StudentRegisterPage: React.FC = () => {
 
   // Final Registration Confirmation
   const handleFinalConfirm = async () => {
-    const res = await registerStudent({
-      name,
-      email,
-      college: extracted.education.institution,
-      degree: extracted.education.degree,
-      graduationYear: extracted.education.graduationYear,
-      cgpa: extracted.education.gpa,
-      password,
-    });
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      showToast('Account credentials (name, email, password) are missing. Please verify Step 1.', 'error');
+      setStep(1);
+      return;
+    }
 
-    if (res.success) {
-      showToast('Candidate account created! Welcome to ProofHire.', 'success');
-      navigate('/student');
-    } else {
-      showToast(res.error || 'Registration failed', 'error');
+    setIsSubmitting(true);
+    try {
+      const res = await registerStudent({
+        name,
+        email,
+        college: extracted.education.institution,
+        degree: extracted.education.degree,
+        graduationYear: extracted.education.graduationYear,
+        cgpa: extracted.education.gpa,
+        password,
+        skills: extracted.skills,
+      });
+
+      if (res.success) {
+        showToast('Candidate account created! Welcome to ProofHire.', 'success');
+        navigate('/student', { replace: true });
+      } else {
+        showToast(res.error || 'Registration failed', 'error');
+      }
+    } catch (e: any) {
+      showToast(e.message || 'Registration failed', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -593,12 +608,12 @@ export const StudentRegisterPage: React.FC = () => {
 
             {/* Final Confirmation Actions */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-              <Button variant="outline" onClick={() => setStep(2)}>
+              <Button variant="outline" onClick={() => setStep(2)} disabled={isSubmitting}>
                 Back to Upload
               </Button>
-              <Button onClick={handleFinalConfirm} className="gap-2 font-semibold">
+              <Button onClick={handleFinalConfirm} disabled={isSubmitting} className="gap-2 font-semibold shadow-btn-amber">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Confirm Profile & Access Student Hub</span>
+                <span>{isSubmitting ? 'Creating Profile & Syncing...' : 'Confirm Profile & Access Student Hub'}</span>
               </Button>
             </div>
           </div>

@@ -1,8 +1,5 @@
 import React from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
-import { UserRole, UserProfile } from '@/types';
-import { DEMO_USERS } from '@/lib/api/demoData';
-import { useAuth } from '@/lib/auth/AuthContext';
 
 // Auth & Public Pages
 import { LoginSelectionPage } from '@/pages/auth/LoginSelectionPage';
@@ -35,101 +32,75 @@ import { StudentEvidenceOverview } from '@/features/placement/StudentEvidenceOve
 import { BatchRankingShortlist } from '@/features/placement/BatchRankingShortlist';
 import { ApplicationStageManager } from '@/features/placement/ApplicationStageManager';
 
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <LandingPage />,
+  },
+  // Public & Auth Routes
+  {
+    path: '/login',
+    element: <LoginSelectionPage />,
+  },
+  {
+    path: '/login/student',
+    element: <StudentLoginPage />,
+  },
+  {
+    path: '/login/placement',
+    element: <PlacementLoginPage />,
+  },
+  {
+    path: '/register',
+    element: <StudentRegisterPage />,
+  },
+  {
+    path: '/vacancies',
+    element: <PublicVacanciesPage />,
+  },
+  // Student Workspace
+  {
+    path: '/student',
+    element: <StudentLayout />,
+    children: [
+      { index: true, element: <StudentDashboard /> },
+      { path: 'profile', element: <StudentProfile /> },
+      { path: 'assessments', element: <StudentAssessments /> },
+      { path: 'evidence', element: <StudentEvidence /> },
+      { path: 'jobs', element: <JobDiscovery /> },
+      { path: 'resume-studio', element: <ResumeStudio /> },
+      { path: 'claim-review', element: <ResumeClaimReview /> },
+      { path: 'applications', element: <ApplicationTracker /> },
+    ],
+  },
+  // Placement Officer Workspace
+  {
+    path: '/placement',
+    element: <PlacementLayout />,
+    children: [
+      { index: true, element: <PlacementDashboard /> },
+      { path: 'campaigns', element: <CampaignManagement /> },
+      { path: 'job-ingestion', element: <JobIngestionDedupe /> },
+      { path: 'student-evidence', element: <StudentEvidenceOverview /> },
+      { path: 'batch-ranking', element: <BatchRankingShortlist /> },
+      { path: 'applications', element: <ApplicationStageManager /> },
+    ],
+  },
+  // Redirect legacy /company attempts to placement workspace
+  {
+    path: '/company/*',
+    element: <Navigate to="/placement" replace />,
+  },
+  {
+    path: '/company',
+    element: <Navigate to="/placement" replace />,
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
+  },
+]);
+
 export const AppRouter: React.FC = () => {
-  const { user, role, switchRole } = useAuth();
-
-  const currentRole: UserRole = role || 'STUDENT';
-
-  const currentUser: UserProfile =
-    user ||
-    (currentRole === 'STUDENT'
-      ? DEMO_USERS.student
-      : DEMO_USERS.placement);
-
-  const handleRoleChange = (newRole: UserRole) => {
-    switchRole(newRole);
-  };
-
-  const router = createBrowserRouter([
-    {
-      path: '/',
-      element: <LandingPage />,
-    },
-    // Public & Auth Routes
-    {
-      path: '/login',
-      element: <LoginSelectionPage />,
-    },
-    {
-      path: '/login/student',
-      element: <StudentLoginPage />,
-    },
-    {
-      path: '/login/placement',
-      element: <PlacementLoginPage />,
-    },
-    {
-      path: '/register',
-      element: <StudentRegisterPage />,
-    },
-    {
-      path: '/vacancies',
-      element: <PublicVacanciesPage />,
-    },
-    // Student Workspace
-    {
-      path: '/student',
-      element: (
-        <StudentLayout
-          currentUser={currentUser}
-          currentRole={currentRole}
-          onRoleChange={handleRoleChange}
-        />
-      ),
-      children: [
-        { index: true, element: <StudentDashboard /> },
-        { path: 'profile', element: <StudentProfile /> },
-        { path: 'assessments', element: <StudentAssessments /> },
-        { path: 'evidence', element: <StudentEvidence /> },
-        { path: 'jobs', element: <JobDiscovery /> },
-        { path: 'resume-studio', element: <ResumeStudio /> },
-        { path: 'claim-review', element: <ResumeClaimReview /> },
-        { path: 'applications', element: <ApplicationTracker /> },
-      ],
-    },
-    // Placement Officer Workspace
-    {
-      path: '/placement',
-      element: (
-        <PlacementLayout
-          currentUser={currentUser}
-          currentRole={currentRole}
-          onRoleChange={handleRoleChange}
-        />
-      ),
-      children: [
-        { index: true, element: <PlacementDashboard /> },
-        { path: 'campaigns', element: <CampaignManagement /> },
-        { path: 'job-ingestion', element: <JobIngestionDedupe /> },
-        { path: 'student-evidence', element: <StudentEvidenceOverview /> },
-        { path: 'batch-ranking', element: <BatchRankingShortlist /> },
-        { path: 'applications', element: <ApplicationStageManager /> },
-      ],
-    },
-    // Redirect any legacy /company attempts to placement workspace
-    {
-      path: '/company/*',
-      element: <Navigate to="/placement" replace />,
-    },
-    {
-      path: '/company',
-      element: <Navigate to="/placement" replace />,
-    },
-    {
-      path: '*',
-      element: <NotFoundPage />,
-    },
-  ]);
-
   return <RouterProvider router={router} />;
 };

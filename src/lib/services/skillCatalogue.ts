@@ -1,4 +1,10 @@
-import { CanonicalSkill } from '../../types';
+export interface CanonicalSkill {
+  id: string;
+  name: string;
+  category: string;
+  aliases: string[];
+  description?: string;
+}
 
 export const CANONICAL_SKILLS: CanonicalSkill[] = [
   {

@@ -3,19 +3,22 @@ import { Outlet } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { UserRole, UserProfile } from '@/types';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { DEMO_USERS } from '@/lib/api/demoData';
 
-interface StudentLayoutProps {
-  currentUser: UserProfile;
-  currentRole: UserRole;
-  onRoleChange: (role: UserRole) => void;
+export interface StudentLayoutProps {
+  currentUser?: UserProfile;
+  currentRole?: UserRole;
+  onRoleChange?: (role: UserRole) => void;
 }
 
-export const StudentLayout: React.FC<StudentLayoutProps> = ({
-  currentUser,
-  currentRole,
-  onRoleChange,
-}) => {
+export const StudentLayout: React.FC<StudentLayoutProps> = (props) => {
+  const { user, role, switchRole } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const currentUser = props.currentUser || user || DEMO_USERS.student;
+  const currentRole = props.currentRole || role || 'STUDENT';
+  const onRoleChange = props.onRoleChange || switchRole;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
