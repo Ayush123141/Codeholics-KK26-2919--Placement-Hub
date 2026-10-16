@@ -42,14 +42,14 @@ describe('Member 2 — Placement Workflow, Auth & Cancellation Tests', () => {
     });
   });
 
-  describe('2. Recruiter Cancellation & Workflow Audit', () => {
-    it('records recruiter interview cancellation with auditable reason', async () => {
+  describe('2. Placement Officer Application Stage Modification & Audit', () => {
+    it('records placement officer application stage cancellation with auditable reason', async () => {
       const res = await request(app)
         .post('/api/applications/app-test-cancel/cancel')
         .send({
           action: 'CANCEL_INTERVIEW',
           reason: 'Candidate accepted competing offer prior to technical round 2',
-          actorRole: 'COMPANY_RECRUITER',
+          actorRole: 'PLACEMENT_OFFICER',
         });
 
       // If app-test-cancel not in live DB, it returns 404 cleanly; otherwise 200
@@ -98,4 +98,42 @@ describe('Member 2 — Placement Workflow, Auth & Cancellation Tests', () => {
       expect(reviewRes.body.evidence.metadata.reviewNotes).toBeDefined();
     });
   });
+
+  describe('4. Placement Officer Cohort Shortlist & Gate Management', () => {
+    it('toggles candidate shortlist approval status', async () => {
+      const res = await request(app)
+        .post('/api/placement/candidates/student-003/shortlist')
+        .send({ isShortlisted: true });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.studentId).toBe('student-003');
+      expect(res.body.isShortlisted).toBe(true);
+    });
+
+    it('approves and releases cohort shortlist with officer signature', async () => {
+      const releaseRes = await request(app)
+        .post('/api/placement/shortlist/release')
+        .send({
+          jobId: 'job-demo-001',
+          releasedBy: 'Dr. Ramesh Sharma (Placement Cell)',
+          notes: 'Cohort 2026 evaluated against frontend JD criteria',
+        });
+
+      expect(releaseRes.status).toBe(200);
+      expect(releaseRes.body.success).toBe(true);
+      expect(releaseRes.body.releasedCount).toBeGreaterThanOrEqual(1);
+      expect(releaseRes.body.releasedAt).toBeDefined();
+    });
+
+    it('returns official shortlist verification status', async () => {
+      const statusRes = await request(app)
+        .get('/api/placement/shortlist/status?jobId=job-demo-001');
+
+      expect(statusRes.status).toBe(200);
+      expect(statusRes.body.success).toBe(true);
+      expect(statusRes.body.shortlistedCount).toBeGreaterThanOrEqual(1);
+    });
+  });
 });
+

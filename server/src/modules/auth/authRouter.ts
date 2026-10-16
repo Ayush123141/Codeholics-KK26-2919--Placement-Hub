@@ -4,19 +4,13 @@ import { supabaseAdmin } from '../../supabase.js';
 
 export const authRouter = Router();
 
-// Pre-defined demo profiles matching our seed script and architecture contracts
-const DEMO_ACCOUNTS: Record<string, { id: string; email: string; role: 'STUDENT' | 'PLACEMENT_OFFICER' | 'COMPANY_RECRUITER'; name: string }> = {
+// Pre-defined demo profiles matching our two-role institutional model (Student & Placement Officer)
+const DEMO_ACCOUNTS: Record<string, { id: string; email: string; role: 'STUDENT' | 'PLACEMENT_OFFICER'; name: string }> = {
   'officer@techsummit.edu': {
     id: 'a1111111-1111-1111-1111-111111111111',
     email: 'officer@techsummit.edu',
     name: 'Dr. Ramesh Kulkarni (Head of Placements)',
     role: 'PLACEMENT_OFFICER',
-  },
-  'recruiter@cloudscale.com': {
-    id: 'b2222222-2222-2222-2222-222222222222',
-    email: 'recruiter@cloudscale.com',
-    name: 'Sarah Jenkins (Lead Technical Recruiter)',
-    role: 'COMPANY_RECRUITER',
   },
   'student@techsummit.edu': {
     id: 'c3333333-3333-3333-3333-333333333333',
@@ -29,7 +23,7 @@ const DEMO_ACCOUNTS: Record<string, { id: string; email: string; role: 'STUDENT'
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().optional(),
-  role: z.enum(['STUDENT', 'PLACEMENT_OFFICER', 'COMPANY_RECRUITER']).optional(),
+  role: z.enum(['STUDENT', 'PLACEMENT_OFFICER']).optional(),
 });
 
 /**

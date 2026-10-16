@@ -26,12 +26,6 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ currentRole, onRoleC
       path: '/placement',
       icon: <Users className="w-3.5 h-3.5" />,
     },
-    {
-      id: 'COMPANY_RECRUITER',
-      label: 'Recruiter',
-      path: '/company',
-      icon: <Building2 className="w-3.5 h-3.5" />,
-    },
   ];
 
   const handleSelectRole = (role: UserRole, path: string) => {

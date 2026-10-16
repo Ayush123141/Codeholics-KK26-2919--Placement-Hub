@@ -5,7 +5,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email?: string;
-    role?: 'STUDENT' | 'PLACEMENT_OFFICER' | 'COMPANY_RECRUITER';
+    role?: 'STUDENT' | 'PLACEMENT_OFFICER';
   };
 }
 
@@ -71,7 +71,7 @@ export async function authenticateToken(
 /**
  * Middleware: Enforce Role Access Control
  */
-export function requireRoles(roles: Array<'STUDENT' | 'PLACEMENT_OFFICER' | 'COMPANY_RECRUITER'>) {
+export function requireRoles(roles: Array<'STUDENT' | 'PLACEMENT_OFFICER'>) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Unauthenticated' });

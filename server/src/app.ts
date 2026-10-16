@@ -13,9 +13,8 @@ import { seedDemoEvidence } from './utils/demoSeed';
 import { authRouter } from './modules/auth/authRouter';
 import { jobsRouter } from './modules/jobs/jobsRoutes';
 import { applicationsRouter } from './modules/applications/applicationsRoutes';
-import { studentRouter } from './modules/student/studentRouter';
 import { placementRouter } from './modules/placement/placementRouter';
-import { companyRouter } from './modules/company/companyRouter';
+import { studentRouter } from './modules/student/studentRouter';
 
 dotenv.config();
 
@@ -46,7 +45,6 @@ app.get('/health', (_req: Request, res: Response) => {
       'applications',
       'student',
       'placement',
-      'company',
       'supabase',
     ],
     member3Modules: [
@@ -74,10 +72,9 @@ app.use('/api/resumes', resumesRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/applications', applicationsRouter);
-
-// Frontend Bridge Routers (connect frontend API calls to backend data)
-app.use('/api/student', studentRouter);
 app.use('/api/placement', placementRouter);
-app.use('/api/company', companyRouter);
+
+// Frontend Bridge Routers
+app.use('/api/student', studentRouter);
 
 export default app;
