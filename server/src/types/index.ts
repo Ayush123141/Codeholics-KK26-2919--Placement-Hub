@@ -101,3 +101,24 @@ export interface ResumeClaimVerification {
   reason: string;
   matchingEvidenceIds: string[];
 }
+
+export interface MatchingResult {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  avatarUrl?: string;
+  department: string;
+  cgpa: number;
+  fitScore: number;
+  matchedSkills: string[];
+  partialEvidenceSkills: string[];
+  noEvidenceSkills: string[];
+  preferredGaps: string[];
+  explanation: string;
+  evidenceRefs: string[];
+  policyVersion: string;
+  isShortlisted: boolean;
+  assessmentScore?: number;
+  applicationStage?: string;
+}
+
