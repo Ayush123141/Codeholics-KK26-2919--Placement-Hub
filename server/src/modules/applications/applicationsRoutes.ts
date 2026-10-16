@@ -182,3 +182,82 @@ applicationsRouter.patch('/:id/stage', async (req: AuthenticatedRequest, res: Re
     return res.status(500).json({ error: 'Stage transition failed', details: err.message });
   }
 });
+
+const cancelApplicationSchema = z.object({
+  action: z.enum(['CANCEL_INTERVIEW', 'WITHDRAW_SHORTLIST', 'REJECT_APPLICATION']),
+  reason: z.string().min(3, 'A clear cancellation reason is required for auditing'),
+  actorId: z.string().optional(),
+  actorRole: z.string().optional(),
+});
+
+/**
+ * POST /api/applications/:id/cancel
+ * Feature B — Recruiter Cancel / Withdraw Action
+ * Explicit, authorized state transition preserving full audit trail.
+ */
+applicationsRouter.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { action, reason, actorId, actorRole } = cancelApplicationSchema.parse(req.body);
+
+    // 1. Fetch current application and associated job
+    const { data: currentApp, error: fetchErr } = await supabaseAdmin
+      .from('applications')
+      .select('*, jobs (id, title, company_name, company_id)')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !currentApp) {
+      return res.status(404).json({ success: false, error: 'Application not found.' });
+    }
+
+    const previousStage = currentApp.current_stage;
+
+    // 2. Determine target stage
+    let targetStage: string;
+    if (action === 'CANCEL_INTERVIEW') {
+      targetStage = 'CANCELLED';
+    } else if (action === 'WITHDRAW_SHORTLIST') {
+      targetStage = 'WITHDRAWN';
+    } else {
+      targetStage = 'REJECTED';
+    }
+
+    // 3. Update application stage (without destructive delete)
+    const { data: updatedApp, error: updateErr } = await supabaseAdmin
+      .from('applications')
+      .update({
+        current_stage: targetStage,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    // 4. Log cancellation event with reason and actor in audit history
+    await supabaseAdmin.from('application_events').insert({
+      application_id: id,
+      from_stage: previousStage,
+      to_stage: targetStage,
+      actor_id: actorId || null,
+      notes: `[${action}] ${reason}`,
+    });
+
+    return res.json({
+      success: true,
+      action,
+      previousStage,
+      newStage: targetStage,
+      reason,
+      data: updatedApp,
+    });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Validation failed', issues: err.issues });
+    }
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+

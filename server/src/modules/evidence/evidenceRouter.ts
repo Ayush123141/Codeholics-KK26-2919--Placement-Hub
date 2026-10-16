@@ -86,9 +86,9 @@ evidenceRouter.post('/', (req: Request, res: Response) => {
   return res.status(201).json({ success: true, evidence: registered });
 });
 
-// PATCH /api/evidence/:id/status - Update evidence status
+// PATCH /api/evidence/:id/status - Update evidence status (Officer Scrutiny)
 evidenceRouter.patch('/:id/status', (req: Request, res: Response) => {
-  const { status, reviewer } = req.body;
+  const { status, reviewer, reviewNotes } = req.body;
   if (!status || !reviewer) {
     return res.status(400).json({ success: false, error: 'status and reviewer are required.' });
   }
@@ -102,5 +102,15 @@ evidenceRouter.patch('/:id/status', (req: Request, res: Response) => {
     return res.status(404).json({ success: false, error: 'Evidence record not found.' });
   }
 
+  if (reviewNotes) {
+    updated.metadata = { ...(updated.metadata || {}), reviewNotes };
+  }
+
   return res.json({ success: true, evidence: updated });
+});
+
+// GET /api/evidence/pending-review - List evidence items requiring scrutiny
+evidenceRouter.get('/pending-review', (_req: Request, res: Response) => {
+  const pending = evidenceStore.filter((e) => e.reviewStatus === 'NEEDS_REVIEW' || e.reviewStatus === 'EVIDENCE_FOUND');
+  return res.json({ success: true, count: pending.length, evidence: pending });
 });

@@ -31,8 +31,15 @@ import { VacancyManagement } from '@/features/company/VacancyManagement';
 import { CandidateShortlist } from '@/features/company/CandidateShortlist';
 import { InterviewPipeline } from '@/features/company/InterviewPipeline';
 
+// Auth Page
+import { LoginPage } from '@/features/auth/LoginPage';
+
 export const AppRouter: React.FC = () => {
-  const [currentRole, setCurrentRole] = useState<UserRole>('STUDENT');
+  // Check stored session or default to STUDENT
+  const storedUserRaw = typeof window !== 'undefined' ? sessionStorage.getItem('proofhire_user') : null;
+  const initialRole: UserRole = storedUserRaw ? JSON.parse(storedUserRaw).role : 'STUDENT';
+
+  const [currentRole, setCurrentRole] = useState<UserRole>(initialRole);
 
   const currentUser: UserProfile =
     currentRole === 'STUDENT'
@@ -45,10 +52,18 @@ export const AppRouter: React.FC = () => {
     setCurrentRole(role);
   };
 
+  const handleLogin = (role: UserRole, user: any) => {
+    setCurrentRole(role);
+  };
+
   const router = createBrowserRouter([
     {
+      path: '/login',
+      element: <LoginPage onLogin={handleLogin} />,
+    },
+    {
       path: '/',
-      element: <Navigate to="/student" replace />,
+      element: <Navigate to="/login" replace />,
     },
     // Student Workspace
     {
