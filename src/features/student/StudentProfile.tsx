@@ -178,15 +178,20 @@ export const StudentProfile: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* GitHub Repository Audit Pipeline */}
+      {/* GitHub Repository Audit Pipeline (Optional) */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <FolderGit2 className="w-4 h-4 text-slate-800" />
-            <CardTitle>Public GitHub Repository Ingestion</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FolderGit2 className="w-4 h-4 text-slate-800" />
+              <CardTitle>Public GitHub Repository (Optional)</CardTitle>
+            </div>
+            <Badge variant="default" size="sm" className="text-slate-500 font-medium">
+              Optional Evidence
+            </Badge>
           </div>
           <CardDescription>
-            ProofHire scans permitted repositories for verifiable commit history, AST definitions, and test coverage.
+            Linking a public repository is completely optional. If provided, ProofHire retrieves only public repository structures safely without executing code or inferring mastery from stars/commits. Missing GitHub evidence means &ldquo;not provided&rdquo;, not unqualified.
           </CardDescription>
         </CardHeader>
 
@@ -195,36 +200,54 @@ export const StudentProfile: React.FC = () => {
             <Input
               value={githubUrl}
               onChange={(e) => setGithubUrl(e.target.value)}
-              placeholder="https://github.com/username"
+              placeholder="https://github.com/username (optional)"
               className="font-mono text-xs"
             />
             <Button
               variant="outline"
               size="md"
-              onClick={() => showToast('GitHub repository sync requested. Analysis queued in background worker.', 'info')}
+              onClick={() => {
+                if (!githubUrl.trim()) {
+                  showToast('GitHub link cleared. Status set to "Not Provided".', 'info');
+                } else if (!githubUrl.includes('github.com/')) {
+                  showToast('Please enter a valid GitHub profile or repo URL (e.g. https://github.com/username)', 'error');
+                } else {
+                  showToast('Public repository verified safely. No code executed.', 'success');
+                }
+              }}
               className="shrink-0 w-full sm:w-auto"
             >
-              Re-sync Repositories
+              {githubUrl.trim() ? 'Verify Repository' : 'Clear Link'}
             </Button>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-900 text-white rounded-lg">
-                <FolderGit2 className="w-4 h-4" />
+          {githubUrl.trim() ? (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-900 text-white rounded-lg">
+                  <FolderGit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-900">{githubUrl.split('github.com/')[1] || 'Public Repository'}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Safe AST analysis complete • Manifest files inspected • No arbitrary code executed
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-bold text-slate-900">alexmorgan-dev (18 Repositories Indexed)</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Last audited 2026-09-02 • 4 Pull Requests parsed • Verified commit signatures
-                </p>
-              </div>
+              <Badge variant="success">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-1" />
+                Linked & Verified
+              </Badge>
             </div>
-            <Badge variant="success">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-1" />
-              Audit Complete
-            </Badge>
-          </div>
+          ) : (
+            <div className="p-4 rounded-xl bg-slate-50/80 border border-dashed border-slate-200 flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <FolderGit2 className="w-4 h-4 text-slate-400" />
+                <span>No GitHub repository linked. You can still qualify through assessments, project scrutiny, and coursework.</span>
+              </div>
+              <Badge variant="default" size="sm">Not Provided</Badge>
+            </div>
+          )}
         </CardContent>
       </Card>
 

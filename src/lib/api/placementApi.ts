@@ -155,4 +155,37 @@ export const placementApi = {
       return app;
     }
   },
+
+  async reviewEvidence(
+    evidenceId: string,
+    status: string,
+    reviewer: string,
+    notes?: string
+  ): Promise<{ success: boolean; evidence: any }> {
+    return await request(`/api/evidence/${evidenceId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reviewer, notes }),
+    });
+  },
+
+  async submitProjectEvaluation(evalData: {
+    studentId: string;
+    projectId?: string;
+    skillIds: string[];
+    projectName: string;
+    repoUrl?: string;
+    reviewer: string;
+    criteria: {
+      architecture: number;
+      codeQuality: number;
+      testCoverage: number;
+      skillDemonstration: number;
+    };
+    rationale: string;
+  }): Promise<{ success: boolean; evaluation: any; evidenceArtifacts: any[] }> {
+    return await request('/api/assessments/project-eval', {
+      method: 'POST',
+      body: JSON.stringify(evalData),
+    });
+  },
 };

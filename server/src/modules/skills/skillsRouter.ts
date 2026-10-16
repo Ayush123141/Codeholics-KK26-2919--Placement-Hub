@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { skillNormalizer } from '../../services/skillNormalizer';
 import { llmAssistService } from '../../services/llmAssist';
 import { getAllCanonicalSkills, getCanonicalSkillById } from './skillCatalogue';
+import { evidenceRegistryService } from '../evidence/evidenceRouter';
 
 export const skillsRouter = Router();
 
@@ -25,6 +26,63 @@ skillsRouter.get('/:id', (req: Request, res: Response) => {
     });
   }
   return res.json({ success: true, skill });
+});
+
+// GET /api/skills/student/:studentId/structured-evidence - Feature D: Structured evidence breakdown for matching & resumes
+skillsRouter.get('/student/:studentId/structured-evidence', (req: Request, res: Response) => {
+  const { studentId } = req.params;
+  const canonicalSkills = getAllCanonicalSkills();
+  const allEvidences = evidenceRegistryService.getStudentEvidence(studentId);
+
+  const breakdown = canonicalSkills.map((skill) => {
+    const evidences = allEvidences.filter(
+      (e) => e.skillId.toLowerCase() === skill.id.toLowerCase()
+    );
+
+    const assessmentDerived = evidences.filter(
+      (e) => e.sourceType === 'assessment' && (e.reviewStatus === 'ISSUER_VERIFIED' || (e.score && e.score >= 70))
+    );
+    const reviewerVerified = evidences.filter(
+      (e) => (e.sourceType === 'project_eval' || e.sourceType === 'certificate') && (e.reviewStatus === 'MANUALLY_REVIEWED' || e.reviewStatus === 'ISSUER_VERIFIED')
+    );
+    const pendingOrReview = evidences.filter(
+      (e) => e.reviewStatus === 'NEEDS_REVIEW' || e.reviewStatus === 'NEEDS_REVISION'
+    );
+    const unverifiedOrContradicted = evidences.filter(
+      (e) => e.reviewStatus === 'UNVERIFIABLE' || e.reviewStatus === 'CONTRADICTED' || e.reviewStatus === 'REJECTED'
+    );
+
+    let statusCategory: 'ASSESSMENT_VERIFIED' | 'REVIEWER_VERIFIED' | 'PENDING_REVIEW' | 'UNVERIFIED' | 'NO_EVIDENCE' = 'NO_EVIDENCE';
+    if (assessmentDerived.length > 0) {
+      statusCategory = 'ASSESSMENT_VERIFIED';
+    } else if (reviewerVerified.length > 0) {
+      statusCategory = 'REVIEWER_VERIFIED';
+    } else if (pendingOrReview.length > 0) {
+      statusCategory = 'PENDING_REVIEW';
+    } else if (unverifiedOrContradicted.length > 0) {
+      statusCategory = 'UNVERIFIED';
+    }
+
+    return {
+      skillId: skill.id,
+      canonicalName: skill.name,
+      category: skill.category,
+      statusCategory,
+      totalEvidenceCount: evidences.length,
+      assessmentDerivedCount: assessmentDerived.length,
+      reviewerVerifiedCount: reviewerVerified.length,
+      pendingCount: pendingOrReview.length,
+      unverifiedCount: unverifiedOrContradicted.length,
+      evidences,
+    };
+  });
+
+  return res.json({
+    success: true,
+    studentId,
+    totalSkillsScored: breakdown.filter((b) => b.totalEvidenceCount > 0).length,
+    skills: breakdown,
+  });
 });
 
 // POST /api/skills/normalize - Normalize a list of raw tokens or text

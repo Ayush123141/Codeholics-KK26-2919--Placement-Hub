@@ -4,6 +4,14 @@ import { evidenceRegistryService } from '../evidence/evidenceRouter';
 
 export const resumesRouter = Router();
 
+// GET /api/resumes/bullets - Retrieve truthful bullets (with optional jobId/skills)
+resumesRouter.get('/bullets', (req: Request, res: Response) => {
+  const studentId = (req.query.studentId as string) || 'student-001';
+  const evidence = evidenceRegistryService.getStudentEvidence(studentId);
+  const bullets = resumeClaimsService.generateTruthfulBullets(studentId, evidence);
+  return res.json(bullets);
+});
+
 // POST /api/resumes/generate-bullets - Generate truthful bullets for candidate
 resumesRouter.post('/generate-bullets', (req: Request, res: Response) => {
   const { studentId, targetSkills } = req.body;
@@ -23,9 +31,10 @@ resumesRouter.post('/generate-bullets', (req: Request, res: Response) => {
   });
 });
 
-// POST /api/resumes/review-claims - Extract claims from uploaded resume text & review against evidence
-resumesRouter.post('/review-claims', (req: Request, res: Response) => {
-  const { studentId, resumeText, claims } = req.body;
+// POST /api/resumes/review-claims & /api/resumes/claim-review - Extract claims and review against evidence
+resumesRouter.post(['/review-claims', '/claim-review'], (req: Request, res: Response) => {
+  const studentId = req.body.studentId || 'student-001';
+  const { resumeText, claims } = req.body;
 
   if (!studentId) {
     return res.status(400).json({ success: false, error: 'studentId is required.' });
