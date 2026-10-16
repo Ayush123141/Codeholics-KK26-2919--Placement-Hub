@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { skillNormalizer } from '../../services/skillNormalizer';
+import { llmAssistService } from '../../services/llmAssist';
 import { getAllCanonicalSkills, getCanonicalSkillById } from './skillCatalogue';
 
 export const skillsRouter = Router();
@@ -49,8 +50,8 @@ skillsRouter.post('/normalize', (req: Request, res: Response) => {
   });
 });
 
-// POST /api/skills/parse-job - Parse JD skills matching Section 5 contract
-skillsRouter.post('/parse-job', (req: Request, res: Response) => {
+// POST /api/skills/parse-job - Parse JD skills matching Section 5 contract (with LLM assist + catalog validation)
+skillsRouter.post('/parse-job', async (req: Request, res: Response) => {
   const { jobId, requiredSkills, preferredSkills, jdText } = req.body;
 
   let parsed;
@@ -61,10 +62,7 @@ skillsRouter.post('/parse-job', (req: Request, res: Response) => {
       preferredList: preferredSkills,
     });
   } else if (typeof jdText === 'string') {
-    parsed = skillNormalizer.parseJobSkills({
-      jobId,
-      requiredText: jdText,
-    });
+    parsed = await llmAssistService.parseJobDescriptionWithLLM(jdText, jobId);
   } else {
     return res.status(400).json({
       success: false,
