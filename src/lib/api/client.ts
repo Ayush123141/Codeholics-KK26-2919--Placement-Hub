@@ -1,6 +1,7 @@
 import { isSupabaseConfigured } from '@/lib/supabase/client';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = rawBaseUrl.replace(/\/+$/, '');
 
 export interface ApiResponse<T> {
   data?: T;
@@ -21,7 +22,10 @@ export async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = API_BASE_URL.endsWith('/api') && cleanEndpoint.startsWith('/api/')
+    ? `${API_BASE_URL}${cleanEndpoint.slice(4)}`
+    : `${API_BASE_URL}${cleanEndpoint}`;
   
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {

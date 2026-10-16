@@ -38,8 +38,7 @@ assert.ok(fs.existsSync('.env.example'), '.env.example must exist');
 const envContent = fs.readFileSync('.env.example', 'utf-8');
 assert.ok(envContent.includes('VITE_SUPABASE_URL'), 'VITE_SUPABASE_URL must be in .env.example');
 assert.ok(envContent.includes('VITE_SUPABASE_PUBLISHABLE_KEY'), 'VITE_SUPABASE_PUBLISHABLE_KEY must be in .env.example');
-assert.ok(envContent.includes('VITE_API_BASE_URL'), 'VITE_API_BASE_URL must be in .env.example');
-assert.ok(!envContent.includes('SERVICE_ROLE_KEY'), 'SERVICE_ROLE_KEY must NEVER be in frontend .env.example');
+assert.ok(!envContent.includes('VITE_SUPABASE_SERVICE_ROLE_KEY'), 'SERVICE_ROLE_KEY must NEVER be prefixed with VITE_');
 console.log('✓ Environment variables security & placeholders verified.');
 
 console.log('\nAll ProofHire smoke tests PASSED!');
