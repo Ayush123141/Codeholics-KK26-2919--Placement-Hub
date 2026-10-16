@@ -10,6 +10,9 @@ import { matchingRouter } from './modules/matching/matchingRouter';
 import { resumesRouter } from './modules/resumes/resumesRouter';
 import { seedDemoEvidence } from './utils/demoSeed';
 
+import { jobsRouter } from './modules/jobs/jobsRoutes';
+import { applicationsRouter } from './modules/applications/applicationsRoutes';
+
 dotenv.config();
 
 const app = express();
@@ -27,6 +30,18 @@ app.get('/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     service: 'ProofHire Placement Hub API',
     version: '1.0.0',
+    modules: [
+      'skills',
+      'assessments',
+      'github',
+      'certificates',
+      'evidence',
+      'matching',
+      'resumes',
+      'jobs',
+      'applications',
+      'supabase',
+    ],
     member3Modules: [
       'skills',
       'assessments',
@@ -47,5 +62,9 @@ app.use('/api/certificates', certificatesRouter);
 app.use('/api/evidence', evidenceRouter);
 app.use('/api/matching', matchingRouter);
 app.use('/api/resumes', resumesRouter);
+
+// Member 2 Module Routers
+app.use('/api/jobs', jobsRouter);
+app.use('/api/applications', applicationsRouter);
 
 export default app;
