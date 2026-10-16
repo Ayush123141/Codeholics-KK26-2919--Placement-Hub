@@ -13,6 +13,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/Toast';
 import { studentApi } from '@/lib/api/studentApi';
 import { ResumeClaim } from '@/types';
@@ -183,17 +184,11 @@ export const ResumeClaimReview: React.FC = () => {
 
             <CardContent className="space-y-4">
               {reviewResult.claims.map((claim) => {
-                const badge = {
-                  SUPPORTED: <Badge variant="success">Supported by Evidence</Badge>,
-                  NEEDS_REVIEW: <Badge variant="warning">Needs Manual Review</Badge>,
-                  CONTRADICTED: <Badge variant="danger">Discrepancy / Unsupported</Badge>,
-                }[claim.status];
-
                 const border = {
                   SUPPORTED: 'border-emerald-200 bg-white',
                   NEEDS_REVIEW: 'border-amber-200 bg-amber-50/20',
                   CONTRADICTED: 'border-rose-200 bg-rose-50/20',
-                }[claim.status];
+                }[claim.status] || 'border-slate-200 bg-white';
 
                 return (
                   <div
@@ -204,7 +199,7 @@ export const ResumeClaimReview: React.FC = () => {
                       <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                         "{claim.claimText}"
                       </p>
-                      {badge}
+                      <StatusBadge status={claim.status} />
                     </div>
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-xs space-y-1">

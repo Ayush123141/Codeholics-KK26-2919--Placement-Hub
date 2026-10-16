@@ -78,39 +78,63 @@ export const JobDiscovery: React.FC = () => {
     navigate(`/student/resume-studio?jobId=${jobId}`);
   };
 
-  const filteredJobs = jobs.filter((job) => {
-    const matchesSearch =
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.requiredSkills.some((s) => s.canonicalName.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesType = typeFilter === 'ALL' || job.type === typeFilter;
-    const matchesScore = (job.matchedScore || 0) >= minScore;
-    return matchesSearch && matchesType && matchesScore;
-  });
+  const [sortBy, setSortBy] = useState<'MATCH_DESC' | 'DEADLINE_ASC' | 'TITLE_ASC'>('MATCH_DESC');
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setTypeFilter('ALL');
+    setMinScore(0);
+    setSortBy('MATCH_DESC');
+  };
+
+  const hasActiveFilters = searchQuery !== '' || typeFilter !== 'ALL' || minScore > 0 || sortBy !== 'MATCH_DESC';
+
+  const filteredJobs = jobs
+    .filter((job) => {
+      const matchesSearch =
+        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.requiredSkills.some((s) => s.canonicalName.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesType = typeFilter === 'ALL' || job.type === typeFilter;
+      const matchesScore = (job.matchedScore || 0) >= minScore;
+      return matchesSearch && matchesType && matchesScore;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'MATCH_DESC') {
+        return (b.matchedScore || 0) - (a.matchedScore || 0);
+      }
+      if (sortBy === 'DEADLINE_ASC') {
+        return a.deadline.localeCompare(b.deadline);
+      }
+      return a.title.localeCompare(b.title);
+    });
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Explore Placement Opportunities
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Browse campus vacancies verified by the placement office with deterministic fit scores matching your recorded evidence.
+            Browse campus vacancies verified by the central placement cell with deterministic fit scores matching your evidence ledger.
           </p>
+        </div>
+        <div className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
+          {filteredJobs.length} {filteredJobs.length === 1 ? 'Opening Available' : 'Openings Available'}
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <Card className="p-4 space-y-3 border-slate-200">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Filter & Search Toolbar */}
+      <Card className="p-4 space-y-3 border-slate-200 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by role, company, or skill..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -120,7 +144,7 @@ export const JobDiscovery: React.FC = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:border-brand-500"
+              className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
             >
               <option value="ALL">All Employment Types</option>
               <option value="Full-time">Full-time (Graduate Offer)</option>
@@ -128,10 +152,22 @@ export const JobDiscovery: React.FC = () => {
             </select>
           </div>
 
+          <div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+            >
+              <option value="MATCH_DESC">Sort: Highest Match Score</option>
+              <option value="DEADLINE_ASC">Sort: Approaching Deadline</option>
+              <option value="TITLE_ASC">Sort: Alphabetical (A-Z)</option>
+            </select>
+          </div>
+
           {isAuthenticated ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs">
-              <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
-                Min Fit Score: {minScore}%
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
+              <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+                Min Fit: {minScore}%
               </span>
               <input
                 type="range"
@@ -145,25 +181,52 @@ export const JobDiscovery: React.FC = () => {
             </div>
           ) : (
             <div className="flex items-center justify-end">
-              <Button size="sm" variant="outline" onClick={() => navigate('/login/student')} className="text-xs">
-                Sign In to View Match Scores
+              <Button size="sm" variant="outline" onClick={() => navigate('/login/student')} className="text-xs w-full">
+                Sign In to View Matches
               </Button>
             </div>
           )}
         </div>
+
+        {/* Active Filter Chips & Clear All */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
+            <span className="text-slate-500 font-medium">Active filters:</span>
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                Keyword: "{searchQuery}"
+                <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600">×</button>
+              </span>
+            )}
+            {typeFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                Type: {typeFilter}
+                <button onClick={() => setTypeFilter('ALL')} className="text-slate-400 hover:text-slate-600">×</button>
+              </span>
+            )}
+            {minScore > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                Min Fit: {minScore}%
+                <button onClick={() => setMinScore(0)} className="text-slate-400 hover:text-slate-600">×</button>
+              </span>
+            )}
+            <button
+              onClick={handleResetFilters}
+              className="text-xs font-semibold text-brand-600 hover:text-brand-800 ml-auto"
+            >
+              Clear all filters
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* Jobs Grid */}
       {filteredJobs.length === 0 ? (
         <EmptyState
           title="No vacancies match your criteria"
-          description="Try broadening your search keywords or resetting your filters."
+          description="Try broadening your search keywords or resetting your active filters."
           actionLabel="Clear Filters"
-          onAction={() => {
-            setSearchQuery('');
-            setTypeFilter('ALL');
-            setMinScore(0);
-          }}
+          onAction={handleResetFilters}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

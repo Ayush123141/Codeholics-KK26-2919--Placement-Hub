@@ -81,16 +81,17 @@ export const StudentLoginPage: React.FC = () => {
               type="email"
               placeholder="e.g. alex.chen@proofhire.edu"
               value={email}
+              autoComplete="email"
               onChange={(e) => setEmail(e.target.value)}
               required
             />
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-slate-700">Password</label>
+                <label htmlFor="student-password-input" className="block text-xs font-semibold text-slate-800">Password</label>
                 <button
                   type="button"
-                  onClick={() => alert('For password reset, please contact your institute placement office or use your Supabase reset token.')}
+                  onClick={() => setErrorMessage('For account recovery, contact your college placement administrator or verify via institutional SSO.')}
                   className="text-[11px] text-brand-600 hover:text-brand-800 font-medium"
                 >
                   Forgot password?
@@ -98,18 +99,20 @@ export const StudentLoginPage: React.FC = () => {
               </div>
               <div className="relative">
                 <input
+                  id="student-password-input"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
                   value={password}
+                  autoComplete="current-password"
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 text-sm bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                  className="w-full px-3 py-2 pr-10 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  aria-label="Toggle password visibility"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>

@@ -10,6 +10,7 @@ import { StudentLoginPage } from '@/pages/auth/StudentLoginPage';
 import { PlacementLoginPage } from '@/pages/auth/PlacementLoginPage';
 import { StudentRegisterPage } from '@/pages/auth/StudentRegisterPage';
 import { PublicVacanciesPage } from '@/pages/public/PublicVacanciesPage';
+import { NotFoundPage } from '@/pages/public/NotFoundPage';
 
 // Layouts
 import { StudentLayout } from '@/layouts/StudentLayout';
@@ -142,7 +143,7 @@ export const AppRouter: React.FC = () => {
     },
     {
       path: '*',
-      element: <Navigate to="/student" replace />,
+      element: <NotFoundPage />,
     },
   ]);
 

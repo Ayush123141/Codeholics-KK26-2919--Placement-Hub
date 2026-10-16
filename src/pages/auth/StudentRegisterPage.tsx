@@ -10,7 +10,6 @@ import {
   ArrowLeft, 
   Plus, 
   Trash2, 
-  Sparkles,
   ShieldAlert,
   Edit3
 } from 'lucide-react';
@@ -367,7 +366,10 @@ export const StudentRegisterPage: React.FC = () => {
               <div className="space-y-2 p-4 bg-brand-50 border border-brand-200 rounded-xl text-xs">
                 <div className="flex items-center justify-between font-bold text-brand-900">
                   <span className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 animate-spin text-brand-600" />
+                    <svg className="animate-spin h-4 w-4 text-brand-600" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
                     <span>Extracting skills, projects, and academic history...</span>
                   </span>
                   <span>{extractionProgress}%</span>
@@ -381,11 +383,19 @@ export const StudentRegisterPage: React.FC = () => {
               </div>
             )}
 
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-500 flex items-start gap-2">
-              <ShieldAlert className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-              <p>
-                <strong>Important Policy:</strong> Extracted resume claims are candidate-provided assertions. They remain marked as <em>Awaiting Confirmation</em> and do <strong>not</strong> automatically become verified evidence until backed by proctored tests or code review.
-              </p>
+            <div className="space-y-2">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Verification Policy:</strong> Extracted resume claims are candidate-provided assertions. They will be marked as <em>Unconfirmed – please review</em> and do <strong>not</strong> automatically become verified evidence until backed by proctored tests, GitHub code analysis, or auditor scrutiny.
+                </p>
+              </div>
+              <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  <strong>Scanned PDF Notice:</strong> If your PDF is an image scan without selectable text, extraction may be limited. You will be able to review and manually adjust all fields on the next screen.
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -394,6 +404,16 @@ export const StudentRegisterPage: React.FC = () => {
               </Button>
 
               <div className="flex items-center gap-2">
+                {file && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setFile(null)} 
+                    className="text-slate-500 hover:text-rose-600"
+                  >
+                    Clear File
+                  </Button>
+                )}
                 <Button variant="ghost" onClick={() => setStep(3)}>
                   Skip Upload & Enter Manually
                 </Button>
@@ -414,12 +434,12 @@ export const StudentRegisterPage: React.FC = () => {
         {/* STEP 3: Editable Review Screen */}
         {step === 3 && (
           <div className="space-y-6">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2.5">
-              <Edit3 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
+              <Edit3 className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold">Extracted Information — Awaiting Candidate Confirmation</p>
-                <p className="text-blue-800 mt-0.5 leading-relaxed">
-                  Review the extracted profile below. You can correct, add, or remove any information before confirming your candidate account.
+                <p className="font-bold">Unconfirmed – please review extracted data</p>
+                <p className="text-amber-800 mt-0.5 leading-relaxed">
+                  Review the extracted profile below. You can correct, add, or remove any information before confirming your candidate account. All entries remain unconfirmed assertions until evidence is verified.
                 </p>
               </div>
             </div>

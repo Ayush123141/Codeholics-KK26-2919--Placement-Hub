@@ -55,18 +55,30 @@ export const Modal: React.FC<ModalProps> = ({
 
       {/* Modal Dialog */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'dialog-title' : undefined}
+        aria-describedby={description ? 'dialog-description' : undefined}
         className={cn(
-          'relative w-full bg-white rounded-2xl shadow-2xl border border-slate-200/80 z-10 overflow-hidden transform transition-all my-8 max-h-[90vh] flex flex-col',
+          'relative w-full bg-white rounded-xl shadow-xl border border-slate-200 z-10 overflow-hidden transform transition-all my-8 max-h-[90vh] flex flex-col',
           sizeClasses[size],
           className
         )}
       >
         {/* Header */}
         {(title || description) && (
-          <div className="flex items-start justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-start justify-between p-5 border-b border-slate-100 bg-white">
             <div>
-              {title && <h3 className="text-base font-bold text-slate-900">{title}</h3>}
-              {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
+              {title && (
+                <h3 id="dialog-title" className="text-base font-bold text-slate-900">
+                  {title}
+                </h3>
+              )}
+              {description && (
+                <p id="dialog-description" className="text-xs text-slate-500 mt-0.5">
+                  {description}
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -84,3 +96,6 @@ export const Modal: React.FC<ModalProps> = ({
     </div>
   );
 };
+
+export { Modal as Dialog };
+

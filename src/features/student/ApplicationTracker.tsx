@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { MatchScoreBar } from '@/components/data-display/MatchScoreBar';
@@ -33,24 +34,7 @@ export const ApplicationTracker: React.FC = () => {
     loadApps();
   }, []);
 
-  const getStageBadge = (stage: ApplicationStage) => {
-    switch (stage) {
-      case 'APPLIED':
-        return <Badge variant="info">Applied</Badge>;
-      case 'SHORTLISTED':
-        return <Badge variant="purple">Shortlisted</Badge>;
-      case 'TECHNICAL_ASSESSMENT':
-        return <Badge variant="warning">Assessment Phase</Badge>;
-      case 'INTERVIEW':
-        return <Badge variant="success">Interview Scheduled</Badge>;
-      case 'OFFER':
-        return <Badge variant="success">Offer Extended</Badge>;
-      case 'REJECTED':
-        return <Badge variant="danger">Not Selected</Badge>;
-      default:
-        return <Badge variant="default">{stage}</Badge>;
-    }
-  };
+
 
   const handleOpenTimeline = (app: Application) => {
     setSelectedApp(app);
@@ -105,7 +89,7 @@ export const ApplicationTracker: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {getStageBadge(app.currentStage)}
+                    <StatusBadge status={app.currentStage} />
                     <Button
                       variant="outline"
                       size="sm"

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users2, 
-  Sparkles, 
   ShieldCheck, 
   CheckCircle2, 
   AlertCircle, 

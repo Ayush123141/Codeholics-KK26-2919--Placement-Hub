@@ -10,8 +10,7 @@ import {
   FileCode, 
   UserCheck,
   Play,
-  RotateCcw,
-  Sparkles
+  RotateCcw
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';

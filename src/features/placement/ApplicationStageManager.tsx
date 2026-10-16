@@ -13,6 +13,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
@@ -108,9 +109,7 @@ export const ApplicationStageManager: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <Badge variant={app.currentStage === 'INTERVIEW' ? 'success' : 'purple'}>
-                  Current: {app.currentStage.replace('_', ' ')}
-                </Badge>
+                <StatusBadge status={app.currentStage} />
                 <Button
                   size="sm"
                   variant="outline"

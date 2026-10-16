@@ -8,7 +8,7 @@ import {
   AlertCircle, 
   Printer, 
   ExternalLink,
-  Sparkles,
+  SlidersHorizontal,
   Info,
   Edit2,
   Check,
@@ -88,7 +88,7 @@ export const ResumeStudio: React.FC = () => {
   if (!profile) return null;
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Control Header (Hidden when printing PDF) */}
       <div className="print:hidden space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -97,7 +97,7 @@ export const ResumeStudio: React.FC = () => {
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 Job-Description-Specific Resume Studio
               </h1>
-              <Badge variant="purple" size="md">
+              <Badge variant="info" size="md">
                 Evidence-Linked
               </Badge>
             </div>
@@ -123,7 +123,7 @@ export const ResumeStudio: React.FC = () => {
               isLoading={isGenerating}
               className="gap-1.5 font-semibold text-xs"
             >
-              <Sparkles className="w-4 h-4" />
+              <SlidersHorizontal className="w-4 h-4" />
               <span>Tailor Resume for Selected JD</span>
             </Button>
           </div>
