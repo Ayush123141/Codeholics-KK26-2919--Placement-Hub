@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { UserRole, UserProfile } from '@/types';
 import { DEMO_USERS } from '@/lib/api/demoData';
+import { useAuth } from '@/lib/auth/AuthContext';
+
+// Auth & Public Pages
+import { LoginSelectionPage } from '@/pages/auth/LoginSelectionPage';
+import { StudentLoginPage } from '@/pages/auth/StudentLoginPage';
+import { PlacementLoginPage } from '@/pages/auth/PlacementLoginPage';
+import { StudentRegisterPage } from '@/pages/auth/StudentRegisterPage';
+import { PublicVacanciesPage } from '@/pages/public/PublicVacanciesPage';
 
 // Layouts
 import { StudentLayout } from '@/layouts/StudentLayout';
@@ -16,6 +24,7 @@ import { JobDiscovery } from '@/features/student/JobDiscovery';
 import { ResumeStudio } from '@/features/student/ResumeStudio';
 import { ResumeClaimReview } from '@/features/student/ResumeClaimReview';
 import { ApplicationTracker } from '@/features/student/ApplicationTracker';
+import { StudentAssessments } from '@/features/student/StudentAssessments';
 
 // Placement Officer Pages
 import { PlacementDashboard } from '@/features/placement/PlacementDashboard';
@@ -32,23 +41,47 @@ import { CandidateShortlist } from '@/features/company/CandidateShortlist';
 import { InterviewPipeline } from '@/features/company/InterviewPipeline';
 
 export const AppRouter: React.FC = () => {
-  const [currentRole, setCurrentRole] = useState<UserRole>('STUDENT');
+  const { user, role, switchRole } = useAuth();
+
+  const currentRole: UserRole = role || 'STUDENT';
 
   const currentUser: UserProfile =
-    currentRole === 'STUDENT'
+    user ||
+    (currentRole === 'STUDENT'
       ? DEMO_USERS.student
       : currentRole === 'PLACEMENT_OFFICER'
       ? DEMO_USERS.placement
-      : DEMO_USERS.company;
+      : DEMO_USERS.company);
 
-  const handleRoleChange = (role: UserRole) => {
-    setCurrentRole(role);
+  const handleRoleChange = (newRole: UserRole) => {
+    switchRole(newRole);
   };
 
   const router = createBrowserRouter([
     {
       path: '/',
       element: <Navigate to="/student" replace />,
+    },
+    // Public & Auth Routes
+    {
+      path: '/login',
+      element: <LoginSelectionPage />,
+    },
+    {
+      path: '/login/student',
+      element: <StudentLoginPage />,
+    },
+    {
+      path: '/login/placement',
+      element: <PlacementLoginPage />,
+    },
+    {
+      path: '/register',
+      element: <StudentRegisterPage />,
+    },
+    {
+      path: '/vacancies',
+      element: <PublicVacanciesPage />,
     },
     // Student Workspace
     {
@@ -64,6 +97,7 @@ export const AppRouter: React.FC = () => {
         { index: true, element: <StudentDashboard /> },
         { path: 'profile', element: <StudentProfile /> },
         { path: 'evidence', element: <StudentEvidence /> },
+        { path: 'assessments', element: <StudentAssessments /> },
         { path: 'jobs', element: <JobDiscovery /> },
         { path: 'resume-studio', element: <ResumeStudio /> },
         { path: 'claim-review', element: <ResumeClaimReview /> },

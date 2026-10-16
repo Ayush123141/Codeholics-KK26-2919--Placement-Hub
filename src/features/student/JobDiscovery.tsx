@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Briefcase, 
   Search, 
@@ -8,7 +9,8 @@ import {
   Building2, 
   CheckCircle2, 
   ArrowRight,
-  Sparkles
+  FileText,
+  Filter
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -19,21 +21,31 @@ import { JobDetailModal } from './JobDetailModal';
 import { useToast } from '@/components/ui/Toast';
 import { studentApi } from '@/lib/api/studentApi';
 import { Job } from '@/types';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export const JobDiscovery: React.FC = () => {
+  const navigate = useNavigate();
   const { showToast } = useToast();
+  const { isAuthenticated } = useAuth();
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [minScore, setMinScore] = useState(0);
 
   useEffect(() => {
     async function loadJobs() {
-      const data = await studentApi.getJobs();
-      setJobs(data);
+      try {
+        const data = await studentApi.getJobs();
+        setJobs(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to load vacancies:', err);
+      }
     }
     loadJobs();
   }, []);
@@ -62,6 +74,10 @@ export const JobDiscovery: React.FC = () => {
     }
   };
 
+  const handleGenerateResumeForJob = (jobId: string) => {
+    navigate(`/student/resume-studio?jobId=${jobId}`);
+  };
+
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -77,23 +93,17 @@ export const JobDiscovery: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Explore Placement Opportunities
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Browse active campus openings with explainable fit scores matching your recorded evidence.
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Browse campus vacancies verified by the placement office with deterministic fit scores matching your recorded evidence.
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="purple" size="md">
-            <Sparkles className="w-3.5 h-3.5 mr-1" />
-            Deterministic Policy v1.0
-          </Badge>
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <Card className="p-4 space-y-3">
+      <Card className="p-4 space-y-3 border-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -113,34 +123,42 @@ export const JobDiscovery: React.FC = () => {
               className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 font-medium text-slate-700 focus:outline-none focus:border-brand-500"
             >
               <option value="ALL">All Employment Types</option>
-              <option value="Full-time">Full-time</option>
-              <option value="Internship">Internship</option>
+              <option value="Full-time">Full-time (Graduate Offer)</option>
+              <option value="Internship">Internship + PPO</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs">
-            <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
-              Min Fit Score: {minScore}%
-            </span>
-            <input
-              type="range"
-              min="0"
-              max="90"
-              step="10"
-              value={minScore}
-              onChange={(e) => setMinScore(Number(e.target.value))}
-              className="w-full accent-brand-600"
-            />
-          </div>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs">
+              <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
+                Min Fit Score: {minScore}%
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="90"
+                step="10"
+                value={minScore}
+                onChange={(e) => setMinScore(Number(e.target.value))}
+                className="w-full accent-brand-600"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-end">
+              <Button size="sm" variant="outline" onClick={() => navigate('/login/student')} className="text-xs">
+                Sign In to View Match Scores
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 
       {/* Jobs Grid */}
       {filteredJobs.length === 0 ? (
         <EmptyState
-          title="No jobs matched your filters"
-          description="Try broadening your search keywords or lowering the minimum fit score."
-          actionLabel="Reset Filters"
+          title="No vacancies match your criteria"
+          description="Try broadening your search keywords or resetting your filters."
+          actionLabel="Clear Filters"
           onAction={() => {
             setSearchQuery('');
             setTypeFilter('ALL');
@@ -152,7 +170,7 @@ export const JobDiscovery: React.FC = () => {
           {filteredJobs.map((job) => (
             <Card
               key={job.id}
-              className="hover:border-brand-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+              className="border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all flex flex-col justify-between space-y-4"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
@@ -161,7 +179,7 @@ export const JobDiscovery: React.FC = () => {
                       {job.title}
                     </h3>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
-                      <span className="font-bold text-slate-700 flex items-center gap-1">
+                      <span className="font-semibold text-slate-700 flex items-center gap-1">
                         <Building2 className="w-3.5 h-3.5 text-slate-400" />
                         {job.company}
                       </span>
@@ -177,25 +195,27 @@ export const JobDiscovery: React.FC = () => {
                   </Badge>
                 </div>
 
-                <div className="flex items-center gap-3 text-xs font-semibold text-slate-700 pt-1">
-                  <span className="text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md border border-brand-100 flex items-center gap-1">
-                    <IndianRupee className="w-3 h-3" />
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-700">
+                  <span className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1 font-bold">
+                    <IndianRupee className="w-3 h-3 text-slate-500" />
                     {job.salaryRange}
                   </span>
                   <span className="text-slate-400">•</span>
                   <span className="text-slate-500 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
+                    <Calendar className="w-3 h-3 text-slate-400" />
                     Deadline: {job.deadline}
                   </span>
                 </div>
 
-                {/* Match score bar */}
-                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                  <MatchScoreBar score={job.matchedScore} policyVersion="v1.0" size="sm" />
-                </div>
+                {/* Match score bar (if authenticated) */}
+                {isAuthenticated && (
+                  <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
+                    <MatchScoreBar score={job.matchedScore} policyVersion="v1.0-80/20" size="sm" />
+                  </div>
+                )}
 
                 {/* Skills tags */}
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 pt-1">
                   <div className="flex flex-wrap items-center gap-1 text-xs">
                     <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">
                       Required:
@@ -224,16 +244,23 @@ export const JobDiscovery: React.FC = () => {
 
               {/* Action footer */}
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 font-medium">
-                  {job.sourceCount} verified source listing{job.sourceCount > 1 ? 's' : ''}
-                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleGenerateResumeForJob(job.id)}
+                  className="text-xs text-brand-700 hover:text-brand-900 font-semibold gap-1.5 px-2"
+                >
+                  <FileText className="w-3.5 h-3.5 text-brand-600" />
+                  <span>Generate Resume</span>
+                </Button>
+
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleOpenDetail(job)}
-                  className="gap-1.5 font-bold"
+                  className="gap-1 font-semibold text-xs"
                 >
-                  <span>Review Match & Details</span>
+                  <span>Review Details</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </div>

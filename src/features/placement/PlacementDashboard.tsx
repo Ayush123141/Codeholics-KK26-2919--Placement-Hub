@@ -48,18 +48,18 @@ export const PlacementDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-brand-950 p-6 sm:p-8 text-white shadow-lg border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      {/* Institutional Header Banner */}
+      <div className="rounded-xl bg-white p-6 sm:p-7 text-slate-900 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-400/30 text-xs font-semibold">
-            <Building2 className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
+            <Building2 className="w-3.5 h-3.5 text-brand-600" />
             <span>Central Placement & Career Cell</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
             Placement Operations Hub
           </h1>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-            TechSummitTrainers cohort management, duplicate job detection across 3 sources, and deterministic batch ranking.
+          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+            TechSummitTrainers cohort management, duplicate job detection across ingested sources, and deterministic batch ranking.
           </p>
         </div>
 
@@ -68,7 +68,7 @@ export const PlacementDashboard: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => navigate('/placement/job-ingestion')}
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-xs"
+            className="border-slate-300 text-slate-700 hover:bg-slate-50"
           >
             Review Ingested Jobs
           </Button>
@@ -76,7 +76,7 @@ export const PlacementDashboard: React.FC = () => {
             variant="primary"
             size="sm"
             onClick={() => navigate('/placement/batch-ranking')}
-            className="bg-brand-500 hover:bg-brand-600 shadow-md shadow-brand-500/30"
+            className="bg-brand-600 hover:bg-brand-700 text-white shadow-xs"
           >
             <span>Run Batch Ranking</span>
             <ArrowRight className="w-4 h-4 ml-1" />

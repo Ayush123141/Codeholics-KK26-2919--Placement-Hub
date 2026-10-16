@@ -1,26 +1,36 @@
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { UserRole, UserProfile } from '@/types';
-import { RoleSwitcher } from './RoleSwitcher';
-import { ShieldCheck, Menu, Bell } from 'lucide-react';
+import { ShieldCheck, Menu, LogOut, Briefcase } from 'lucide-react';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { Button } from '@/components/ui/Button';
 
 export interface HeaderProps {
-  currentUser: UserProfile;
-  currentRole: UserRole;
-  onRoleChange: (role: UserRole) => void;
+  currentUser?: UserProfile | null;
+  currentRole?: UserRole | null;
+  onRoleChange?: (role: UserRole) => void;
   onToggleSidebar?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
   currentRole,
-  onRoleChange,
   onToggleSidebar,
 }) => {
+  const { logout, isAuthenticated, user: authUser } = useAuth();
+  const navigate = useNavigate();
+  const activeUser = currentUser || authUser;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 h-16 px-4 sm:px-6 flex items-center justify-between shadow-2xs">
+    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 h-16 px-4 sm:px-6 flex items-center justify-between">
       {/* Brand & Mobile menu button */}
       <div className="flex items-center gap-3">
-        {onToggleSidebar && (
+        {onToggleSidebar && isAuthenticated && (
           <button
             onClick={onToggleSidebar}
             className="lg:hidden p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
@@ -30,50 +40,84 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-slate-900 flex items-center justify-center text-white shadow-md shadow-brand-600/20">
-            <ShieldCheck className="w-5 h-5" />
+        <Link to="/" className="flex items-center gap-2.5 group">
+          <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-xs">
+            <ShieldCheck className="w-4 h-4 text-brand-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-slate-900">
+              <span className="font-bold text-base tracking-tight text-slate-900 group-hover:text-brand-600 transition-colors">
                 ProofHire
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-sm bg-slate-900 text-slate-100 uppercase tracking-wider">
-                PS6 Hub
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 uppercase tracking-wider border border-slate-200">
+                Placement Hub
               </span>
             </div>
             <p className="text-[10px] text-slate-500 font-medium hidden md:block">
-              Verifiable Evidence & Placement Operations
+              Evidence-Based Recruitment & Skill Verification
             </p>
           </div>
-        </div>
+        </Link>
       </div>
 
-      {/* Role Switcher & Persona Badge */}
+      {/* Right Navigation Controls */}
       <div className="flex items-center gap-3 sm:gap-4">
-        <RoleSwitcher currentRole={currentRole} onRoleChange={onRoleChange} />
+        {/* Public Vacancies link */}
+        <Link
+          to="/vacancies"
+          className="text-xs font-semibold text-slate-600 hover:text-slate-900 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+        >
+          <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+          <span>Explore Vacancies</span>
+        </Link>
 
-        <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+        {isAuthenticated && activeUser ? (
+          <div className="flex items-center gap-3">
+            {/* User Profile Pill */}
+            <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-bold text-slate-800 leading-none">{activeUser.name}</p>
+                <span className="text-[10px] font-semibold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200 inline-block mt-0.5">
+                  {activeUser.role.replace('_', ' ')}
+                </span>
+              </div>
+              <img
+                src={activeUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'}
+                alt={activeUser.name}
+                className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-300"
+              />
+            </div>
 
-        {/* User Card */}
-        <div className="flex items-center gap-2.5">
-          <img
-            src={currentUser.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'}
-            alt={currentUser.name}
-            className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-500/20"
-          />
-          <div className="hidden xl:block text-left">
-            <p className="text-xs font-bold text-slate-800 leading-none">{currentUser.name}</p>
-            <p className="text-[10px] text-slate-500 mt-1 font-medium truncate max-w-[140px]">
-              {currentUser.role === 'STUDENT'
-                ? currentUser.degree
-                : currentUser.role === 'PLACEMENT_OFFICER'
-                ? 'Placement Lead'
-                : currentUser.companyName}
-            </p>
+            {/* Logout Action */}
+            <button
+              onClick={handleLogout}
+              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+              title="Sign Out"
+              aria-label="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/login')}
+              className="text-xs font-semibold"
+            >
+              Sign In
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/register')}
+              className="text-xs font-semibold"
+            >
+              Register
+            </Button>
+          </div>
+        )}
       </div>
     </header>
   );

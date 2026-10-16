@@ -9,10 +9,10 @@ import {
   CheckCircle2, 
   Award, 
   Clock, 
-  ExternalLink,
   ChevronRight,
   TrendingUp,
-  FileText
+  FileText,
+  ClipboardCheck
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -44,10 +44,10 @@ export const StudentDashboard: React.FC = () => {
           studentApi.getEvidence(),
         ]);
         setProfile(prof);
-        setSkills(Array.isArray(sk) ? sk : []);
+        setSkills(sk);
         setJobs(Array.isArray(jb) ? jb : []);
-        setApplications(Array.isArray(apps) ? apps : []);
-        setEvidenceList(Array.isArray(ev) ? ev : []);
+        setApplications(apps);
+        setEvidenceList(ev);
       } catch (err) {
         console.error('Failed to load student dashboard:', err);
       } finally {
@@ -70,45 +70,42 @@ export const StudentDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-brand-950 p-6 sm:p-8 text-white shadow-lg border border-slate-800">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-400/30 text-xs font-semibold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Evidence-First Profile Active</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {profile.name}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Your profile is backed by <strong className="text-white">{evidenceList.length} verified evidence artifacts</strong>. Placement matching engines evaluate your skills deterministically based on proof, not unverified claims.
-            </p>
+      {/* Clean Institutional Header Card */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-brand-700 border border-blue-200 text-xs font-semibold">
+            <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
+            <span>Candidate Evidence Status: Active & Audited</span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/student/evidence')}
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-xs"
-            >
-              Inspect Evidence
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/student/jobs')}
-              className="bg-brand-500 hover:bg-brand-600 shadow-md shadow-brand-500/30"
-            >
-              <span>Explore Vacancies</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Welcome back, {profile.name}
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
+            {profile.degree} • {profile.college} (CGPA: {profile.cgpa}/10.0). Your candidate profile is supported by{' '}
+            <strong className="text-slate-900 font-semibold">{evidenceList.length} verified evidence artifacts</strong> across proctored assessments and evaluated coursework.
+          </p>
         </div>
 
-        {/* Subtle background glow */}
-        <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/student/assessments')}
+            className="text-xs font-semibold"
+          >
+            <ClipboardCheck className="w-4 h-4 mr-1 text-slate-600" />
+            Take Skill Assessment
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => navigate('/student/jobs')}
+            className="text-xs font-semibold gap-1.5"
+          >
+            <span>Explore Vacancies</span>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* KPI Metrics */}
@@ -135,9 +132,9 @@ export const StudentDashboard: React.FC = () => {
           color="violet"
         />
         <StatCard
-          title="Active Pipeline"
+          title="Active Applications"
           value={applications.length}
-          subtitle="Stage: Interview Round 1"
+          subtitle="Round 1 Technical Interview"
           icon={<Briefcase className="w-5 h-5" />}
           color="amber"
         />
@@ -168,7 +165,7 @@ export const StudentDashboard: React.FC = () => {
 
             <CardContent>
               {/* Evidence Status Bar */}
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 mb-4 flex flex-wrap gap-4 text-xs font-semibold text-slate-600">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 mb-4 flex flex-wrap gap-4 text-xs font-semibold text-slate-600">
                 <span className="inline-flex items-center gap-1.5 text-emerald-700">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   {verifiedSkillsCount} Verified
@@ -193,14 +190,14 @@ export const StudentDashboard: React.FC = () => {
                   <div
                     key={skill.id}
                     onClick={() => navigate('/student/evidence')}
-                    className="p-3.5 rounded-xl border border-slate-200/90 bg-white hover:border-brand-300 hover:bg-slate-50/50 transition-all cursor-pointer flex items-center justify-between group"
+                    className="p-3.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 group-hover:text-brand-600 transition-colors">
+                        <span className="text-sm font-semibold text-slate-900 group-hover:text-brand-600 transition-colors">
                           {skill.canonicalName}
                         </span>
-                        <span className="text-[10px] text-slate-400">({skill.proficiencyLevel})</span>
+                        <span className="text-[11px] text-slate-400">({skill.proficiencyLevel})</span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
                         {skill.evidenceCount > 0
@@ -238,7 +235,7 @@ export const StudentDashboard: React.FC = () => {
               {jobs.slice(0, 2).map((job) => (
                 <div
                   key={job.id}
-                  className="p-4 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 transition-all space-y-3"
+                  className="p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-all space-y-3"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
@@ -257,7 +254,7 @@ export const StudentDashboard: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={() => navigate('/student/jobs')}
-                        className="self-start sm:self-auto"
+                        className="self-start sm:self-auto text-xs"
                       >
                         Review Match & Apply
                       </Button>
@@ -288,7 +285,7 @@ export const StudentDashboard: React.FC = () => {
         <div className="space-y-6">
           {/* Upcoming Interview Card */}
           {activeApplication?.interviewDate && (
-            <Card className="border-brand-200 bg-brand-50/30">
+            <Card className="border-blue-200 bg-blue-50/40">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2 text-brand-700">
                   <Calendar className="w-4 h-4" />
@@ -304,7 +301,7 @@ export const StudentDashboard: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pt-2">
-                <div className="p-3 bg-white rounded-lg border border-brand-200/80 text-xs space-y-1">
+                <div className="p-3 bg-white rounded-lg border border-blue-200/80 text-xs space-y-1">
                   <p className="font-bold text-slate-900">{activeApplication.interviewDate}</p>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
                     {activeApplication.interviewNotes}
@@ -314,7 +311,7 @@ export const StudentDashboard: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => navigate('/student/applications')}
-                  className="w-full text-brand-700 border-brand-300 hover:bg-brand-100/50"
+                  className="w-full text-brand-700 border-brand-300 hover:bg-brand-50 text-xs"
                 >
                   View Application Timeline
                 </Button>
@@ -334,7 +331,7 @@ export const StudentDashboard: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl space-y-1.5">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-900">PostgreSQL</span>
                   <Badge variant="warning" size="sm">Review Pending</Badge>
@@ -344,23 +341,23 @@ export const StudentDashboard: React.FC = () => {
                 </p>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-800">Docker</span>
                   <Badge variant="default" size="sm">No Evidence</Badge>
                 </div>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Preferred skill for Systems Engineer roles. Link a containerized GitHub repository to boost match fit.
+                  Preferred skill for Systems Engineer roles. Take an assessment or link a containerized GitHub repository to boost match fit.
                 </p>
               </div>
 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/student/evidence')}
-                className="w-full"
+                onClick={() => navigate('/student/assessments')}
+                className="w-full text-xs"
               >
-                Submit Evidence Artifact
+                Take Assessment or Submit Evidence
               </Button>
             </CardContent>
           </Card>
