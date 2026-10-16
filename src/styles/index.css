@@ -2,20 +2,130 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --ink: #0F1420;
+  --ink-2: #171D2C;
+  --ink-3: #242C3D;
+  --amber: #F5A300;
+  --amber-deep: #D68F00;
+  --amber-text: #A05E00;
+  --amber-soft: rgba(245, 163, 0, 0.10);
+  --fresh: #00C896;
+  --fresh-soft: rgba(0, 200, 150, 0.10);
+  --slate: #6B7280;
+  --paper: #FFFFFF;
+  --paper-alt: #F9FAFB;
+  --card: #FFFFFF;
+  --line: rgba(15, 20, 32, 0.09);
+  --line-dark: rgba(241, 242, 240, 0.12);
+  --text-on-dark: #F5F6F8;
+  --muted-on-dark: rgba(245, 246, 248, 0.60);
+  --radius: 14px;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
   
-  /* Focus visible accessibility outline */
+  /* Focus visible accessibility outline matching reference */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-600 ring-offset-2 ring-offset-white;
+    outline: 2px solid var(--amber) !important;
+    outline-offset: 3px !important;
+    border-radius: 2px !important;
   }
+}
+
+/* Reusable Reference UI Rhythm Classes */
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber-text);
+  margin-bottom: 12px;
+  display: block;
+}
+
+.sec-title {
+  font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.8rem, 3.6vw, 2.65rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+
+.sec-lede {
+  color: var(--slate);
+  font-size: 1rem;
+  line-height: 1.75;
+  max-width: 620px;
+}
+
+/* Glassmorphism token utility (Restricted to Navbar, Landing Floating Panels, Auth, Modals) */
+.glass-panel {
+  background-color: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.60);
+  box-shadow: 0 8px 32px rgba(15, 20, 32, 0.08);
+}
+
+.glass-nav {
+  background-color: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Solid fallback when backdrop-filter is unsupported */
+@supports not ((-webkit-backdrop-filter: blur(14px)) or (backdrop-filter: blur(14px))) {
+  .glass-panel {
+    background-color: #ffffff;
+    border-color: rgba(15, 20, 32, 0.12);
+  }
+  .glass-nav {
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+/* Reference skill tag chips */
+.skill-tag-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  border: 1px solid var(--line);
+  color: var(--slate);
+  padding: 4px 10px;
+  border-radius: 4px;
+  background-color: var(--paper-alt);
+  white-space: nowrap;
+}
+
+/* Status pill with dot */
+.status-pill-dot {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 50px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
 }
 
 /* Custom scrollbar */
@@ -23,18 +133,15 @@
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d1d5db;
   border-radius: 9999px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #9ca3af;
 }
 
 /* Reduced motion preference */
@@ -69,4 +176,3 @@
     page-break-before: always;
   }
 }
-
