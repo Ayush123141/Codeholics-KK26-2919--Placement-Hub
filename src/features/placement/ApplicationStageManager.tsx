@@ -36,7 +36,7 @@ export const ApplicationStageManager: React.FC = () => {
 
   useEffect(() => {
     async function loadApps() {
-      const data = await studentApi.getApplications();
+      const data = await placementApi.getApplications();
       setApplications(data);
     }
     loadApps();
