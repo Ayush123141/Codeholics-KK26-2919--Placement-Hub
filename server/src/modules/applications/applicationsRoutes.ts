@@ -136,16 +136,19 @@ applicationsRouter.patch('/:id/stage', async (req: AuthenticatedRequest, res: Re
     const { stage, notes } = updateStageSchema.parse(req.body);
 
     // Get current application state
+    const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
     let currentApp: any = null;
-    try {
-      const { data: appData } = await supabaseAdmin
-        .from('applications')
-        .select('current_stage')
-        .eq('id', id)
-        .maybeSingle();
-      currentApp = appData;
-    } catch {
-      // Non-UUID ID or network error fallback
+    if (isUuid(id)) {
+      try {
+        const { data: appData } = await supabaseAdmin
+          .from('applications')
+          .select('current_stage')
+          .eq('id', id)
+          .maybeSingle();
+        currentApp = appData;
+      } catch {
+        // Non-UUID ID or network error fallback
+      }
     }
 
     if (!currentApp) {
@@ -222,28 +225,31 @@ applicationsRouter.post('/:id/cancel', async (req: AuthenticatedRequest, res: Re
     }
 
     // 1. Fetch current application and associated job (try by id or student_id)
+    const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
     let currentApp: any = null;
-    try {
-      const { data: byId } = await supabaseAdmin
-        .from('applications')
-        .select('*, jobs (id, title, company_name, company_id)')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (byId) {
-        currentApp = byId;
-      } else {
-        const { data: byStudent } = await supabaseAdmin
+    if (isUuid(id)) {
+      try {
+        const { data: byId } = await supabaseAdmin
           .from('applications')
           .select('*, jobs (id, title, company_name, company_id)')
-          .eq('student_id', id)
-          .order('created_at', { ascending: false })
-          .limit(1)
+          .eq('id', id)
           .maybeSingle();
-        currentApp = byStudent;
+
+        if (byId) {
+          currentApp = byId;
+        } else {
+          const { data: byStudent } = await supabaseAdmin
+            .from('applications')
+            .select('*, jobs (id, title, company_name, company_id)')
+            .eq('student_id', id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          currentApp = byStudent;
+        }
+      } catch {
+        // Non-UUID ID or fallback
       }
-    } catch {
-      // Non-UUID ID or fallback
     }
 
     if (!currentApp) {

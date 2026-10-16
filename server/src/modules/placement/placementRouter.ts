@@ -216,16 +216,19 @@ placementRouter.post('/candidates/:studentId/shortlist', async (req: Request, re
     inMemoryShortlists.set(studentId, existing);
 
     // Also attempt Supabase update if match_results table exists
-    try {
-      await supabaseAdmin
-        .from('match_results')
-        .update({
-          is_shortlisted: nextShortlisted,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('student_id', studentId);
-    } catch {
-      // Graceful fallback to in-memory state
+    const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    if (isUuid(studentId)) {
+      try {
+        await supabaseAdmin
+          .from('match_results')
+          .update({
+            is_shortlisted: nextShortlisted,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('student_id', studentId);
+      } catch {
+        // Graceful fallback to in-memory state
+      }
     }
 
     return res.json({

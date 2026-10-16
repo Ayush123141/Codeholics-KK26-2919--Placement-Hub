@@ -14,12 +14,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
 import { DEMO_BATCH_RANKING, DEMO_EVIDENCE } from '@/lib/api/demoData';
 import { placementApi } from '@/lib/api/placementApi';
 import { MatchingResult, EvidenceRecord } from '@/types';
 
 export const StudentEvidenceOverview: React.FC = () => {
+  const { showToast } = useToast();
   const [candidates] = useState<MatchingResult[]>(DEMO_BATCH_RANKING);
+  const [evidenceList, setEvidenceList] = useState<EvidenceRecord[]>(DEMO_EVIDENCE);
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('ALL');
   const [selectedCandidate, setSelectedCandidate] = useState<MatchingResult | null>(null);
@@ -176,7 +179,7 @@ export const StudentEvidenceOverview: React.FC = () => {
                 Verified Evidence Artifacts & Scrutiny
               </h4>
               <div className="space-y-2">
-                {DEMO_EVIDENCE.slice(0, 3).map((ev) => (
+                {evidenceList.slice(0, 3).map((ev) => (
                   <div key={ev.id} className="p-3 rounded-xl border border-slate-200 bg-white text-xs space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900">{ev.title}</span>
@@ -199,36 +202,54 @@ export const StudentEvidenceOverview: React.FC = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            placementApi.reviewEvidence(ev.id, 'MANUALLY_REVIEWED', 'Dr. Ramesh Sharma (Placement Cell)', 'Evidence approved following code review')
-                              .catch(() => {});
-                            alert(`Evidence artifact ${ev.id} marked as MANUALLY_REVIEWED.`);
+                          onClick={async () => {
+                            try {
+                              await placementApi.reviewEvidence(ev.id, 'MANUALLY_REVIEWED', 'Dr. Ramesh Sharma (Placement Cell)', 'Evidence approved following code review');
+                              setEvidenceList((prev) =>
+                                prev.map((item) => (item.id === ev.id ? { ...item, status: 'VERIFIED' as any } : item))
+                              );
+                              showToast(`Artifact ${ev.title} approved and verified.`, 'success');
+                            } catch {
+                              showToast('Failed to update evidence status.', 'error');
+                            }
                           }}
-                          className="text-[10px] text-emerald-700 hover:bg-emerald-50 h-7 px-2"
+                          className="text-[10px] text-emerald-700 hover:bg-emerald-50 h-7 px-2 font-semibold"
                         >
                           Approve
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            placementApi.reviewEvidence(ev.id, 'NEEDS_REVISION', 'Dr. Ramesh Sharma (Placement Cell)', 'Insufficient test coverage')
-                              .catch(() => {});
-                            alert(`Revision requested for artifact ${ev.id}.`);
+                          onClick={async () => {
+                            try {
+                              await placementApi.reviewEvidence(ev.id, 'NEEDS_REVISION', 'Dr. Ramesh Sharma (Placement Cell)', 'Insufficient test coverage');
+                              setEvidenceList((prev) =>
+                                prev.map((item) => (item.id === ev.id ? { ...item, status: 'NEEDS_REVIEW' as any } : item))
+                              );
+                              showToast(`Revision requested for artifact ${ev.title}.`, 'warning');
+                            } catch {
+                              showToast('Failed to update evidence status.', 'error');
+                            }
                           }}
-                          className="text-[10px] text-amber-700 hover:bg-amber-50 h-7 px-2"
+                          className="text-[10px] text-amber-700 hover:bg-amber-50 h-7 px-2 font-semibold"
                         >
                           Request Revision
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            placementApi.reviewEvidence(ev.id, 'REJECTED', 'Dr. Ramesh Sharma (Placement Cell)', 'Unverifiable project link')
-                              .catch(() => {});
-                            alert(`Artifact ${ev.id} rejected.`);
+                          onClick={async () => {
+                            try {
+                              await placementApi.reviewEvidence(ev.id, 'REJECTED', 'Dr. Ramesh Sharma (Placement Cell)', 'Unverifiable project link');
+                              setEvidenceList((prev) =>
+                                prev.map((item) => (item.id === ev.id ? { ...item, status: 'UNVERIFIED' as any } : item))
+                              );
+                              showToast(`Artifact ${ev.title} rejected.`, 'error');
+                            } catch {
+                              showToast('Failed to update evidence status.', 'error');
+                            }
                           }}
-                          className="text-[10px] text-rose-700 hover:bg-rose-50 h-7 px-2"
+                          className="text-[10px] text-rose-700 hover:bg-rose-50 h-7 px-2 font-semibold"
                         >
                           Reject
                         </Button>
