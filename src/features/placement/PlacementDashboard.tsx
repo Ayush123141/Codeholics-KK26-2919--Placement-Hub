@@ -50,12 +50,9 @@ export const PlacementDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Institutional Header Banner */}
       <div className="rounded-xl bg-white p-6 sm:p-7 text-slate-900 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold">
-            <Building2 className="w-3.5 h-3.5 text-brand-600" />
-            <span>Central Placement & Career Cell</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+        <div className="space-y-1.5">
+          <span className="eyebrow !mb-1">Central Placement Cell</span>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
             Placement Operations Hub
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">

@@ -27,13 +27,13 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 h-16 px-4 sm:px-6 flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-white border-b border-line h-16 px-4 sm:px-6 flex items-center justify-between shadow-xs">
       {/* Brand & Mobile menu button */}
       <div className="flex items-center gap-3">
         {onToggleSidebar && isAuthenticated && (
           <button
             onClick={onToggleSidebar}
-            className="lg:hidden p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+            className="lg:hidden p-2 text-slate-500 hover:text-ink rounded-lg hover:bg-slate-100 transition-colors"
             aria-label="Toggle Navigation"
           >
             <Menu className="w-5 h-5" />
@@ -41,15 +41,15 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-xs">
-            <ShieldCheck className="w-4 h-4 text-brand-400" />
+          <div className="w-8 h-8 rounded-[8px] bg-brand-500 flex items-center justify-center text-ink shadow-xs">
+            <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-base tracking-tight text-slate-900 group-hover:text-brand-600 transition-colors">
-                ProofHire
+              <span className="font-display font-extrabold text-base tracking-tight text-ink group-hover:text-brand-600 transition-colors">
+                Proof<span className="text-brand-600">Hire</span>
               </span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 uppercase tracking-wider border border-slate-200">
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-paper-alt text-slate-700 uppercase tracking-wider border border-line">
                 Placement Hub
               </span>
             </div>
@@ -65,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Public Vacancies link */}
         <Link
           to="/vacancies"
-          className="text-xs font-semibold text-slate-600 hover:text-slate-900 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+          className="font-mono text-xs font-semibold text-slate-600 hover:text-ink hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
         >
           <Briefcase className="w-3.5 h-3.5 text-slate-400" />
           <span>Explore Vacancies</span>
@@ -74,10 +74,10 @@ export const Header: React.FC<HeaderProps> = ({
         {isAuthenticated && activeUser ? (
           <div className="flex items-center gap-3">
             {/* User Profile Pill */}
-            <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
+            <div className="flex items-center gap-2.5 pl-3 border-l border-line">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-bold text-slate-800 leading-none">{activeUser.name}</p>
-                <span className="text-[10px] font-semibold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200 inline-block mt-0.5">
+                <p className="text-xs font-bold text-ink leading-none">{activeUser.name}</p>
+                <span className="font-mono text-[10px] font-semibold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200 inline-block mt-0.5">
                   {activeUser.role.replace('_', ' ')}
                 </span>
               </div>
@@ -104,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
               variant="outline"
               size="sm"
               onClick={() => navigate('/login')}
-              className="text-xs font-semibold"
+              className="text-xs font-bold"
             >
               Sign In
             </Button>
@@ -112,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
               variant="primary"
               size="sm"
               onClick={() => navigate('/register')}
-              className="text-xs font-semibold"
+              className="text-xs font-bold shadow-btn-amber"
             >
               Register
             </Button>

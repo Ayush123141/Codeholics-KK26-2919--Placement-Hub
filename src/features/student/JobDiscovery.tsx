@@ -15,6 +15,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { MatchScoreBar } from '@/components/data-display/MatchScoreBar';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { JobDetailModal } from './JobDetailModal';
@@ -111,30 +112,31 @@ export const JobDiscovery: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Page Header following reference rhythm */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Explore Placement Opportunities
+          <span className="eyebrow !mb-1">Campus Opportunities</span>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+            Explore Placement Openings
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Browse campus vacancies verified by the central placement cell with deterministic fit scores matching your evidence ledger.
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+            Browse verified institutional vacancies with deterministic 80/20 criteria matching against your evidence ledger.
           </p>
         </div>
-        <div className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 self-start sm:self-auto">
-          {filteredJobs.length} {filteredJobs.length === 1 ? 'Opening Available' : 'Openings Available'}
+        <div className="font-mono text-xs font-semibold px-3 py-1.5 rounded-full bg-paper-alt text-slate-700 border border-line self-start sm:self-auto shadow-xs">
+          {filteredJobs.length} {filteredJobs.length === 1 ? 'Opening Listed' : 'Openings Listed'}
         </div>
       </div>
 
       {/* Filter & Search Toolbar */}
-      <Card className="p-4 space-y-3 border-slate-200 shadow-xs">
+      <Card className="p-4 space-y-3 border-line shadow-card bg-white">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by role, company, or skill..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-300 rounded-[8px] text-ink placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500 font-sans"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -144,7 +146,7 @@ export const JobDiscovery: React.FC = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+              className="w-full text-xs px-3 py-2 rounded-[8px] border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500 font-sans"
             >
               <option value="ALL">All Employment Types</option>
               <option value="Full-time">Full-time (Graduate Offer)</option>
@@ -156,7 +158,7 @@ export const JobDiscovery: React.FC = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full text-xs px-3 py-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600"
+              className="w-full text-xs px-3 py-2 rounded-[8px] border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500 font-sans"
             >
               <option value="MATCH_DESC">Sort: Highest Match Score</option>
               <option value="DEADLINE_ASC">Sort: Approaching Deadline</option>
@@ -165,8 +167,8 @@ export const JobDiscovery: React.FC = () => {
           </div>
 
           {isAuthenticated ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
-              <span className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] border border-slate-300 bg-white text-xs">
+              <span className="font-mono text-[11px] font-semibold text-slate-700 whitespace-nowrap">
                 Min Fit: {minScore}%
               </span>
               <input
@@ -176,12 +178,12 @@ export const JobDiscovery: React.FC = () => {
                 step="10"
                 value={minScore}
                 onChange={(e) => setMinScore(Number(e.target.value))}
-                className="w-full accent-brand-600"
+                className="w-full accent-brand-500"
               />
             </div>
           ) : (
             <div className="flex items-center justify-end">
-              <Button size="sm" variant="outline" onClick={() => navigate('/login/student')} className="text-xs w-full">
+              <Button size="sm" variant="outline" onClick={() => navigate('/login/student')} className="text-xs w-full font-mono">
                 Sign In to View Matches
               </Button>
             </div>
@@ -190,29 +192,29 @@ export const JobDiscovery: React.FC = () => {
 
         {/* Active Filter Chips & Clear All */}
         {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
-            <span className="text-slate-500 font-medium">Active filters:</span>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-line text-xs">
+            <span className="font-mono text-[11px] text-slate-500 font-medium">Active filters:</span>
             {searchQuery && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-paper-alt text-slate-700 font-mono text-[11px] font-medium border border-line">
                 Keyword: "{searchQuery}"
-                <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-slate-600">×</button>
+                <button onClick={() => setSearchQuery('')} className="text-slate-400 hover:text-ink font-bold">×</button>
               </span>
             )}
             {typeFilter !== 'ALL' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-paper-alt text-slate-700 font-mono text-[11px] font-medium border border-line">
                 Type: {typeFilter}
-                <button onClick={() => setTypeFilter('ALL')} className="text-slate-400 hover:text-slate-600">×</button>
+                <button onClick={() => setTypeFilter('ALL')} className="text-slate-400 hover:text-ink font-bold">×</button>
               </span>
             )}
             {minScore > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-medium border border-slate-200">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-paper-alt text-slate-700 font-mono text-[11px] font-medium border border-line">
                 Min Fit: {minScore}%
-                <button onClick={() => setMinScore(0)} className="text-slate-400 hover:text-slate-600">×</button>
+                <button onClick={() => setMinScore(0)} className="text-slate-400 hover:text-ink font-bold">×</button>
               </span>
             )}
             <button
               onClick={handleResetFilters}
-              className="text-xs font-semibold text-brand-600 hover:text-brand-800 ml-auto"
+              className="font-mono text-[11px] font-bold text-brand-700 hover:text-brand-900 ml-auto transition-colors"
             >
               Clear all filters
             </button>
@@ -220,7 +222,7 @@ export const JobDiscovery: React.FC = () => {
         )}
       </Card>
 
-      {/* Jobs Grid */}
+      {/* Jobs Grid (Solid white surfaces with 1px border for legibility) */}
       {filteredJobs.length === 0 ? (
         <EmptyState
           title="No vacancies match your criteria"
@@ -229,16 +231,16 @@ export const JobDiscovery: React.FC = () => {
           onAction={handleResetFilters}
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {filteredJobs.map((job) => (
             <Card
               key={job.id}
-              className="border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all flex flex-col justify-between space-y-4"
+              className="border-line hover:border-slate-300 hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col justify-between space-y-4 bg-white"
             >
               <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-bold text-slate-900 leading-snug">
+                    <h3 className="font-display text-base font-bold text-ink leading-snug">
                       {job.title}
                     </h3>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
@@ -253,52 +255,57 @@ export const JobDiscovery: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  <Badge variant={job.hasApplied ? 'success' : 'slate'} size="sm">
-                    {job.hasApplied ? 'Applied' : job.type}
-                  </Badge>
+                  {/* Status pill with dot */}
+                  <div className="shrink-0">
+                    {job.hasApplied ? (
+                      <StatusBadge status="APPLIED" size="sm" />
+                    ) : (
+                      <StatusBadge status={job.status || 'OPEN'} size="sm" />
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-700">
-                  <span className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1 font-bold">
+                  <span className="font-mono text-ink bg-paper-alt px-2.5 py-1 rounded-[4px] border border-line flex items-center gap-1 font-bold">
                     <IndianRupee className="w-3 h-3 text-slate-500" />
                     {job.salaryRange}
                   </span>
                   <span className="text-slate-400">•</span>
-                  <span className="text-slate-500 flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-slate-400" />
+                  <span className="font-mono text-xs text-slate-500 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     Deadline: {job.deadline}
                   </span>
                 </div>
 
                 {/* Match score bar (if authenticated) */}
                 {isAuthenticated && (
-                  <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
+                  <div className="p-2.5 rounded-[8px] bg-paper-alt border border-line">
                     <MatchScoreBar score={job.matchedScore} policyVersion="v1.0-80/20" size="sm" />
                   </div>
                 )}
 
-                {/* Skills tags */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex flex-wrap items-center gap-1 text-xs">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">
+                {/* Reference Skill tags as small pill chips */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
                       Required:
                     </span>
                     {job.requiredSkills.map((req) => (
-                      <Badge key={req.skillId} variant="default" size="sm">
+                      <span key={req.skillId} className="skill-tag-chip">
                         {req.canonicalName}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
 
                   {job.preferredSkills.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1 text-xs">
-                      <span className="text-[10px] font-bold uppercase text-slate-400 mr-1">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
                         Preferred:
                       </span>
                       {job.preferredSkills.map((pref) => (
-                        <Badge key={pref.skillId} variant="purple" size="sm">
+                        <span key={pref.skillId} className="skill-tag-chip border-brand-200 text-brand-800 bg-brand-50/50">
                           {pref.canonicalName}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
                   )}
@@ -306,12 +313,12 @@ export const JobDiscovery: React.FC = () => {
               </div>
 
               {/* Action footer */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-3 border-t border-line flex items-center justify-between">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleGenerateResumeForJob(job.id)}
-                  className="text-xs text-brand-700 hover:text-brand-900 font-semibold gap-1.5 px-2"
+                  className="text-xs text-brand-700 hover:text-brand-900 font-mono font-bold gap-1.5 px-2"
                 >
                   <FileText className="w-3.5 h-3.5 text-brand-600" />
                   <span>Generate Resume</span>
@@ -321,7 +328,7 @@ export const JobDiscovery: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => handleOpenDetail(job)}
-                  className="gap-1 font-semibold text-xs"
+                  className="gap-1 font-mono font-bold text-xs"
                 >
                   <span>Review Details</span>
                   <ArrowRight className="w-3.5 h-3.5" />

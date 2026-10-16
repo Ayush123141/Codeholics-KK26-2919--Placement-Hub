@@ -73,16 +73,13 @@ export const StudentDashboard: React.FC = () => {
       {/* Clean Institutional Header Card */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-brand-700 border border-blue-200 text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
-            <span>Candidate Evidence Status: Active & Audited</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <span className="eyebrow !mb-1">Student Candidate Dashboard</span>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
             Welcome back, {profile.name}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
             {profile.degree} • {profile.college} (CGPA: {profile.cgpa}/10.0). Your candidate profile is supported by{' '}
-            <strong className="text-slate-900 font-semibold">{evidenceList.length} verified evidence artifacts</strong> across proctored assessments and evaluated coursework.
+            <strong className="text-ink font-semibold">{evidenceList.length} verified evidence artifacts</strong> across proctored assessments and evaluated coursework.
           </p>
         </div>
 

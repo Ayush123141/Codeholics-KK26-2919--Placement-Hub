@@ -67,31 +67,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
       {/* Mobile Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-xs lg:hidden"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar Container */}
+      {/* Solid Sidebar Container (No glass in app shell) */}
       <aside
         className={cn(
-          'fixed lg:sticky top-0 lg:top-16 z-40 h-full lg:h-[calc(100vh-4rem)] w-60 bg-white border-r border-slate-200 flex flex-col justify-between transition-transform duration-200 ease-in-out shrink-0',
+          'fixed lg:sticky top-0 lg:top-16 z-40 h-full lg:h-[calc(100vh-4rem)] w-60 bg-white border-r border-line flex flex-col justify-between transition-transform duration-200 ease-in-out shrink-0',
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         <div className="p-4 flex flex-col h-full overflow-y-auto">
           {/* Mobile close button & title */}
-          <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-100 lg:hidden">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="flex items-center justify-between pb-3 mb-2 border-b border-line lg:hidden">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-slate-500">
               {role.replace('_', ' ')} Navigation
             </span>
-            <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+            <button onClick={onClose} className="p-1 text-slate-400 hover:text-ink rounded-lg">
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Section label */}
-          <div className="px-2 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <div className="px-2 py-2 font-mono text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             {role === 'STUDENT'
               ? 'Candidate Workspace'
               : role === 'PLACEMENT_OFFICER'
@@ -109,21 +109,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group',
+                    'flex items-center justify-between px-3 py-2 rounded-[8px] text-xs font-medium transition-all group',
                     isActive
-                      ? 'bg-brand-50 text-brand-700 font-semibold border-l-2 border-brand-600'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      ? 'bg-brand-50 text-brand-700 font-bold border-l-2 border-brand-500 shadow-xs'
+                      : 'text-slate-600 hover:text-ink hover:bg-paper-alt'
                   )
                 }
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="shrink-0 text-slate-500 group-hover:text-slate-800 transition-colors">
+                  <span className="shrink-0 text-slate-400 group-hover:text-ink transition-colors">
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
                 </div>
                 {item.badge && (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                  <span className="font-mono text-[9px] font-semibold px-1.5 py-0.5 rounded bg-paper-alt text-slate-600 border border-line">
                     {item.badge}
                   </span>
                 )}
@@ -132,10 +132,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
           </nav>
         </div>
 
-        {/* Footer info box */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/70">
-          <p className="text-[11px] font-bold text-slate-700">ProofHire PS6 Hub</p>
-          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+        {/* Footer info box with solid surface */}
+        <div className="p-4 border-t border-line bg-paper-alt">
+          <p className="font-display text-[11px] font-bold text-ink">ProofHire Ledger</p>
+          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed font-sans">
             Deterministic matching (80/20). Verified evidence, truthful resumes.
           </p>
         </div>

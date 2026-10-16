@@ -42,17 +42,14 @@ export const CompanyDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-brand-950 p-6 sm:p-8 text-white shadow-lg border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-400/30 text-xs font-semibold">
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Hiring Partner Portal — CloudScale Technologies</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+      {/* Banner: Solid surface matching reference rules */}
+      <div className="rounded-[14px] bg-white p-6 sm:p-7 text-ink border border-line shadow-card flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1.5">
+          <span className="eyebrow !mb-1">Hiring Partner Portal</span>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
             Corporate Recruitment Workspace
           </h1>
-          <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
             Review authorized, evidence-backed candidate shortlists vetted by TechSummitTrainers. No unsupported resume claims.
           </p>
         </div>
@@ -62,7 +59,7 @@ export const CompanyDashboard: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => navigate('/company/vacancies')}
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-xs"
+            className="text-xs font-mono font-bold"
           >
             Manage Vacancies
           </Button>
