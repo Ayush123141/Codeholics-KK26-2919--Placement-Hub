@@ -45,7 +45,7 @@ applicationsRouter.get('/student/:studentId', async (req: AuthenticatedRequest, 
 
 /**
  * GET /api/applications/job/:jobId
- * List all applications for a specific job (Recruiter / Placement Officer)
+ * List all applications for a specific job (Placement Officer)
  */
 applicationsRouter.get('/job/:jobId', async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -192,7 +192,7 @@ const cancelApplicationSchema = z.object({
 
 /**
  * POST /api/applications/:id/cancel
- * Feature B — Recruiter Cancel / Withdraw Action
+ * Placement Officer Application Cancellation / Withdrawal Action
  * Explicit, authorized state transition preserving full audit trail.
  */
 applicationsRouter.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {

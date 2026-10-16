@@ -31,19 +31,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       role: 'PLACEMENT_OFFICER' as UserRole,
       title: 'Placement Officer',
       email: 'officer@techsummit.edu',
-      desc: 'Verify student evidence, manage campaigns, approve shortlists, and track cohort outcomes.',
+      desc: 'Verify student evidence, manage campaigns & vacancies, approve shortlists, and track cohort outcomes.',
       icon: Users,
       badge: 'Admin Access',
       badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-    },
-    {
-      role: 'COMPANY_RECRUITER' as UserRole,
-      title: 'Company Recruiter',
-      email: 'recruiter@cloudscale.com',
-      desc: 'Publish verified job openings, inspect evidence-backed shortlists, schedule & cancel interviews.',
-      icon: Building2,
-      badge: 'Employer Portal',
-      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
     },
     {
       role: 'STUDENT' as UserRole,
@@ -88,8 +79,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       // Navigate to authorized dashboard
       if (data.user.role === 'PLACEMENT_OFFICER') {
         navigate('/placement');
-      } else if (data.user.role === 'COMPANY_RECRUITER') {
-        navigate('/company');
       } else {
         navigate('/student');
       }

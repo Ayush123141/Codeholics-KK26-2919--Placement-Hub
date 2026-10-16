@@ -6,7 +6,6 @@ import { DEMO_USERS } from '@/lib/api/demoData';
 // Layouts
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { PlacementLayout } from '@/layouts/PlacementLayout';
-import { CompanyLayout } from '@/layouts/CompanyLayout';
 
 // Student Portal Pages
 import { StudentDashboard } from '@/features/student/StudentDashboard';
@@ -25,12 +24,6 @@ import { JobIngestionDedupe } from '@/features/placement/JobIngestionDedupe';
 import { StudentEvidenceOverview } from '@/features/placement/StudentEvidenceOverview';
 import { BatchRankingShortlist } from '@/features/placement/BatchRankingShortlist';
 import { ApplicationStageManager } from '@/features/placement/ApplicationStageManager';
-
-// Company Recruiter Pages
-import { CompanyDashboard } from '@/features/company/CompanyDashboard';
-import { VacancyManagement } from '@/features/company/VacancyManagement';
-import { CandidateShortlist } from '@/features/company/CandidateShortlist';
-import { InterviewPipeline } from '@/features/company/InterviewPipeline';
 
 // Auth Page
 import { LoginPage } from '@/features/auth/LoginPage';
@@ -106,22 +99,14 @@ export const AppRouter: React.FC = () => {
         { path: 'applications', element: <ApplicationStageManager /> },
       ],
     },
-    // Company Recruiter Workspace
+    // Redirect any legacy /company attempts to placement workspace
+    {
+      path: '/company/*',
+      element: <Navigate to="/placement" replace />,
+    },
     {
       path: '/company',
-      element: (
-        <CompanyLayout
-          currentUser={currentUser}
-          currentRole={currentRole}
-          onRoleChange={handleRoleChange}
-        />
-      ),
-      children: [
-        { index: true, element: <CompanyDashboard /> },
-        { path: 'vacancies', element: <VacancyManagement /> },
-        { path: 'candidates', element: <CandidateShortlist /> },
-        { path: 'pipeline', element: <InterviewPipeline /> },
-      ],
+      element: <Navigate to="/placement" replace />,
     },
     {
       path: '*',

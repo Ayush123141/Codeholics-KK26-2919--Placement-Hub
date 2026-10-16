@@ -126,6 +126,34 @@ export const placementApi = {
     }
   },
 
+  async releaseShortlist(jobId: string = 'job-demo-001', notes?: string): Promise<{
+    success: boolean;
+    releasedCount: number;
+    releasedAt: string;
+    releasedBy: string;
+    message: string;
+  }> {
+    try {
+      return await request(`/api/placement/shortlist/release`, {
+        method: 'POST',
+        body: JSON.stringify({
+          jobId,
+          releasedBy: 'Dr. Ramesh Sharma (Placement Cell)',
+          notes: notes || 'Shortlist approved and officially released by Placement Officer.',
+        }),
+      });
+    } catch {
+      const approved = localRanking.filter(r => r.isShortlisted);
+      return {
+        success: true,
+        releasedCount: approved.length,
+        releasedAt: new Date().toISOString(),
+        releasedBy: 'Dr. Ramesh Sharma (Placement Cell)',
+        message: 'Shortlist approved and officially released to company recruiter.',
+      };
+    }
+  },
+
   async updateApplicationStage(
     applicationId: string,
     newStage: ApplicationStage,

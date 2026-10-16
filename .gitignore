@@ -38,5 +38,9 @@ Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
+
+# Local Handover Notes (Never push to remote)
+MEMBER2_HANDOVER_NOTES.md
+LOCAL_HANDOVER.md
 *.sln
 *.sw?
