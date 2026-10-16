@@ -105,7 +105,41 @@ export const studentApi = {
 
   async getJobs(): Promise<Job[]> {
     try {
-      return await request<Job[]>('/api/jobs');
+      const response = await request<any>('/api/jobs');
+      const list = Array.isArray(response) 
+        ? response 
+        : Array.isArray(response?.data) 
+          ? response.data 
+          : [];
+
+      if (!list.length) return localJobs;
+
+      return list.map((item: any) => ({
+        id: item.id || `job-${Math.random()}`,
+        title: item.title || 'Software Engineer',
+        company: item.company || item.company_name || 'Tech Company',
+        location: item.location || 'Remote',
+        type: (item.type || item.workplace_type || 'Full-time') as Job['type'],
+        salaryRange: item.salaryRange || item.salary_range || 'Competitive',
+        description: item.description || '',
+        requiredSkills: (item.requiredSkills || []).map((sk: any) => 
+          typeof sk === 'string' ? { skillId: sk, canonicalName: sk, sourceText: sk, weight: 1 } : sk
+        ),
+        preferredSkills: (item.preferredSkills || []).map((sk: any) => 
+          typeof sk === 'string' ? { skillId: sk, canonicalName: sk, sourceText: sk, weight: 1 } : sk
+        ),
+        eligibilityCriteria: item.eligibilityCriteria || {
+          minimumCgpa: 6.5,
+          allowedDepartments: ['Computer Science', 'Information Technology'],
+          graduationYear: [2025, 2026],
+        },
+        deadline: item.deadline || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+        postedDate: item.postedDate || item.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        status: item.status || (item.is_active !== false ? 'ACTIVE' : 'CLOSED'),
+        sourceCount: item.sourceCount || (Array.isArray(item.job_sources) ? item.job_sources.length : 1),
+        matchedScore: item.matchedScore || 85,
+        hasApplied: item.hasApplied || false,
+      }));
     } catch {
       return localJobs;
     }

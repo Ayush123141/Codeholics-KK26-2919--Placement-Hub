@@ -10,6 +10,7 @@ import { matchingRouter } from './modules/matching/matchingRouter';
 import { resumesRouter } from './modules/resumes/resumesRouter';
 import { seedDemoEvidence } from './utils/demoSeed';
 
+import { authRouter } from './modules/auth/authRouter';
 import { jobsRouter } from './modules/jobs/jobsRoutes';
 import { applicationsRouter } from './modules/applications/applicationsRoutes';
 
@@ -64,6 +65,7 @@ app.use('/api/matching', matchingRouter);
 app.use('/api/resumes', resumesRouter);
 
 // Member 2 Module Routers
+app.use('/api/auth', authRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/applications', applicationsRouter);
 
