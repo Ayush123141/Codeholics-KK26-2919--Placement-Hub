@@ -20,13 +20,14 @@ import { Modal } from '@/components/ui/Modal';
 import { MatchScoreBar } from '@/components/data-display/MatchScoreBar';
 import { useToast } from '@/components/ui/Toast';
 import { placementApi } from '@/lib/api/placementApi';
-import { MatchingResult } from '@/types';
+import { MatchingResult, Campaign } from '@/types';
 
 export const BatchRankingShortlist: React.FC = () => {
   const { showToast } = useToast();
   const [candidates, setCandidates] = useState<MatchingResult[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [policyVersion, setPolicyVersion] = useState('v1.0-deterministic-80-20');
-  const [selectedJobId, setSelectedJobId] = useState('job-demo-001');
+  const [selectedJobId, setSelectedJobId] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState<MatchingResult | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -34,10 +35,22 @@ export const BatchRankingShortlist: React.FC = () => {
   const [isReleasing, setIsReleasing] = useState(false);
   const [isShortlistReleased, setIsShortlistReleased] = useState(true);
 
+  useEffect(() => {
+    async function loadCampaigns() {
+      try {
+        const camps = await placementApi.getCampaigns();
+        setCampaigns(camps);
+      } catch (err) {
+        console.warn('Failed to load campaigns for batch ranking:', err);
+      }
+    }
+    loadCampaigns();
+  }, []);
+
   const fetchRanking = async (jobId: string) => {
     setIsLoading(true);
     try {
-      const res = await placementApi.runBatchRanking(jobId);
+      const res = await placementApi.runBatchRanking(jobId === 'all' ? '' : jobId);
       setCandidates(res.results);
       setPolicyVersion(res.policyVersion);
     } catch {
@@ -46,6 +59,7 @@ export const BatchRankingShortlist: React.FC = () => {
       setIsLoading(false);
     }
   };
+
 
   const handleReleaseShortlist = async () => {
     const shortlistedCount = candidates.filter((c) => c.isShortlisted).length;
@@ -145,13 +159,28 @@ export const BatchRankingShortlist: React.FC = () => {
       {/* Target Job & Policy Selector */}
       <Card className="p-4 bg-slate-900 text-white border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-brand-300">
-              Active Job Description & Evaluation Policy
-            </span>
-            <h3 className="text-base font-bold text-white">
-              CloudScale Technologies — Frontend Platform Engineer
-            </h3>
+          <div className="space-y-1.5 flex-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-brand-300">
+                Active Hiring Drive & Evaluation Policy
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <select
+                value={selectedJobId}
+                onChange={(e) => setSelectedJobId(e.target.value)}
+                className="bg-slate-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 max-w-md"
+              >
+                <option value="all">All Placement Drives & Applicant Students</option>
+                {campaigns.map((camp) => (
+                  <option key={camp.id} value={camp.jobId}>
+                    {camp.title} ({camp.companyName} — {camp.jobTitle})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <p className="text-xs text-slate-300">
               Required: <strong>React (45%), TypeScript (35%)</strong> • Preferred:{' '}
               <strong>Node.js (10%), PostgreSQL (10%)</strong>
@@ -173,6 +202,7 @@ export const BatchRankingShortlist: React.FC = () => {
           </div>
         </div>
       </Card>
+
 
       {/* Transparent Policy Explainer Callout */}
       <div className="p-3.5 rounded-xl bg-brand-50/70 border border-brand-200 text-xs text-brand-900 flex items-start gap-2.5">

@@ -12,7 +12,9 @@ import {
   ChevronRight,
   TrendingUp,
   FileText,
-  ClipboardCheck
+  ClipboardCheck,
+  Building2,
+  Target
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -22,13 +24,15 @@ import { EvidenceBadge } from '@/components/data-display/EvidenceBadge';
 import { MatchScoreBar } from '@/components/data-display/MatchScoreBar';
 import { DashboardSkeleton } from '@/components/feedback/LoadingSkeleton';
 import { studentApi } from '@/lib/api/studentApi';
-import { UserProfile, StudentSkill, Job, Application, EvidenceRecord } from '@/types';
+import { placementApi } from '@/lib/api/placementApi';
+import { UserProfile, StudentSkill, Job, Application, EvidenceRecord, Campaign } from '@/types';
 
 export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [skills, setSkills] = useState<StudentSkill[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [evidenceList, setEvidenceList] = useState<EvidenceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,18 +40,20 @@ export const StudentDashboard: React.FC = () => {
   useEffect(() => {
     async function loadData() {
       try {
-        const [prof, sk, jb, apps, ev] = await Promise.all([
+        const [prof, sk, jb, apps, ev, camps] = await Promise.all([
           studentApi.getProfile(),
           studentApi.getSkills(),
           studentApi.getJobs(),
           studentApi.getApplications(),
           studentApi.getEvidence(),
+          placementApi.getCampaigns().catch(() => []),
         ]);
         setProfile(prof);
         setSkills(sk);
         setJobs(Array.isArray(jb) ? jb : []);
         setApplications(apps);
         setEvidenceList(ev);
+        setCampaigns(Array.isArray(camps) ? camps : []);
       } catch (err) {
         console.error('Failed to load student dashboard:', err);
       } finally {
@@ -56,6 +62,7 @@ export const StudentDashboard: React.FC = () => {
     }
     loadData();
   }, []);
+
 
   if (isLoading || !profile) {
     return <DashboardSkeleton />;
@@ -209,6 +216,59 @@ export const StudentDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* Active Placement Campaigns Card */}
+          {campaigns.length > 0 && (
+            <Card className="border-brand-200 bg-brand-50/20">
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-brand-700 mb-0.5">
+                    <Target className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Campus Drives</span>
+                  </div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Active Institutional Placement Campaigns
+                  </CardTitle>
+                  <CardDescription>
+                    Official hiring drives launched by your college placement office for the 2026 cohort
+                  </CardDescription>
+                </div>
+                <Badge variant="purple">{campaigns.length} Active Drives</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {campaigns.slice(0, 3).map((camp) => (
+                  <div
+                    key={camp.id}
+                    className="p-3.5 rounded-xl border border-brand-100 bg-white hover:border-brand-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">{camp.title}</span>
+                        <Badge variant="info" size="sm">{camp.status}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                        <span className="font-semibold text-slate-700 flex items-center gap-1">
+                          <Building2 className="w-3 h-3 text-slate-400" />
+                          {camp.companyName}
+                        </span>
+                        <span>•</span>
+                        <span>Role: <strong className="text-brand-700">{camp.jobTitle}</strong></span>
+                        <span>•</span>
+                        <span>Target: <strong>{camp.targetHires} Hires</strong></span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => navigate('/student/jobs')}
+                      className="text-xs self-start sm:self-auto shrink-0 font-semibold"
+                    >
+                      View & Apply
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Suitable Jobs */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -229,9 +289,10 @@ export const StudentDashboard: React.FC = () => {
             </CardHeader>
 
             <CardContent className="space-y-3.5">
-              {jobs.slice(0, 2).map((job) => (
+              {jobs.slice(0, 4).map((job) => (
                 <div
                   key={job.id}
+
                   className="p-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-all space-y-3"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
