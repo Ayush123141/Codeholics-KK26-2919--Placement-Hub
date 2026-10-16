@@ -14,6 +14,7 @@ import { authRouter } from './modules/auth/authRouter';
 import { jobsRouter } from './modules/jobs/jobsRoutes';
 import { applicationsRouter } from './modules/applications/applicationsRoutes';
 import { placementRouter } from './modules/placement/placementRouter';
+import { studentRouter } from './modules/student/studentRouter';
 
 dotenv.config();
 
@@ -42,8 +43,8 @@ app.get('/health', (_req: Request, res: Response) => {
       'resumes',
       'jobs',
       'applications',
+      'student',
       'placement',
-      'company',
       'supabase',
     ],
     member3Modules: [
@@ -72,5 +73,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/applications', applicationsRouter);
 app.use('/api/placement', placementRouter);
+
+// Frontend Bridge Routers
+app.use('/api/student', studentRouter);
 
 export default app;
