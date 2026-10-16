@@ -155,7 +155,7 @@ export const ApplicationStageManager: React.FC = () => {
               onChange={(e) => setTargetStage(e.target.value as ApplicationStage)}
             >
               <option value="APPLIED">Applied (Preliminary Review)</option>
-              <option value="SHORTLISTED">Shortlisted (Shared with Recruiter)</option>
+              <option value="SHORTLISTED">Shortlisted (Approved by Officer)</option>
               <option value="TECHNICAL_ASSESSMENT">Technical Assessment</option>
               <option value="INTERVIEW">Interview Round</option>
               <option value="OFFER">Offer Extended</option>

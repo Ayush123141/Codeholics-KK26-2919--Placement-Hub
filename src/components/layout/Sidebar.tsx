@@ -38,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
     { label: 'Explore Vacancies', path: '/student/jobs', icon: <Briefcase className="w-4 h-4" /> },
     { label: 'My Profile', path: '/student/profile', icon: <User className="w-4 h-4" /> },
     { label: 'My Evidence', path: '/student/evidence', icon: <ShieldCheck className="w-4 h-4" /> },
-    { label: 'Assessments & Scrutiny', path: '/student/assessments', icon: <ClipboardCheck className="w-4 h-4" />, badge: 'MCQ & Rubric' },
+    { label: 'Skill Assessments', path: '/student/assessments', icon: <ClipboardCheck className="w-4 h-4" />, badge: 'Proctored' },
     { label: 'My Resume Studio', path: '/student/resume-studio', icon: <FileText className="w-4 h-4" /> },
     { label: 'Resume Claim Review', path: '/student/claim-review', icon: <FileCheck2 className="w-4 h-4" /> },
     { label: 'Applications', path: '/student/applications', icon: <Send className="w-4 h-4" /> },
@@ -53,14 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
     { label: 'Application Pipeline', path: '/placement/applications', icon: <Send className="w-4 h-4" /> },
   ];
 
-  const companyNav: NavItem[] = [
-    { label: 'Recruiter Dashboard', path: '/company', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { label: 'Job Vacancies', path: '/company/vacancies', icon: <Building2 className="w-4 h-4" /> },
-    { label: 'Shared Shortlist', path: '/company/candidates', icon: <Users2 className="w-4 h-4" /> },
-    { label: 'Interviews & Offers', path: '/company/pipeline', icon: <Award className="w-4 h-4" /> },
-  ];
-
-  const items = role === 'STUDENT' ? studentNav : role === 'PLACEMENT_OFFICER' ? placementNav : companyNav;
+  const items = role === 'STUDENT' ? studentNav : placementNav;
 
   return (
     <>
@@ -94,9 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
           <div className="px-2 py-2 font-mono text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             {role === 'STUDENT'
               ? 'Candidate Workspace'
-              : role === 'PLACEMENT_OFFICER'
-              ? 'Placement Operations'
-              : 'Corporate Partner'}
+              : 'Placement Operations'}
           </div>
 
           {/* Nav Items */}
@@ -105,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.path === '/student' || item.path === '/placement' || item.path === '/company'}
+                end={item.path === '/student' || item.path === '/placement'}
                 onClick={onClose}
                 className={({ isActive }) =>
                   cn(

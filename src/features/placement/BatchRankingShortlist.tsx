@@ -10,7 +10,8 @@ import {
   Briefcase, 
   FileCheck2,
   RefreshCw,
-  Info
+  Info,
+  Send
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +31,8 @@ export const BatchRankingShortlist: React.FC = () => {
   const [selectedCandidate, setSelectedCandidate] = useState<MatchingResult | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [isReleasing, setIsReleasing] = useState(false);
+  const [isShortlistReleased, setIsShortlistReleased] = useState(true);
 
   const fetchRanking = async (jobId: string) => {
     setIsLoading(true);
@@ -41,6 +44,28 @@ export const BatchRankingShortlist: React.FC = () => {
       showToast('Failed to load batch ranking results', 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleReleaseShortlist = async () => {
+    const shortlistedCount = candidates.filter((c) => c.isShortlisted).length;
+    if (shortlistedCount === 0) {
+      showToast('Please approve at least one candidate before releasing shortlist to company.', 'warning');
+      return;
+    }
+
+    setIsReleasing(true);
+    try {
+      const res = await placementApi.releaseShortlist(selectedJobId, 'Approved batch for CloudScale Technologies drive');
+      setIsShortlistReleased(true);
+      showToast(
+        `Shortlist Released! ${res.releasedCount} candidate profile(s) now accessible to company recruiters.`,
+        'success'
+      );
+    } catch {
+      showToast('Failed to release shortlist to company', 'error');
+    } finally {
+      setIsReleasing(false);
     }
   };
 
@@ -59,8 +84,8 @@ export const BatchRankingShortlist: React.FC = () => {
       );
       showToast(
         isShortlisted
-          ? 'Candidate approved and shared with company recruiter shortlist!'
-          : 'Candidate removed from recruiter shortlist',
+          ? 'Candidate approved! Added to verified cohort shortlist.'
+          : 'Candidate removed from cohort shortlist',
         'info'
       );
     } catch {
@@ -102,6 +127,17 @@ export const BatchRankingShortlist: React.FC = () => {
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Re-run Ranking</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleReleaseShortlist}
+            isLoading={isReleasing}
+            className="gap-1.5 font-bold shadow-sm"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Approve & Release Shortlist</span>
           </Button>
         </div>
       </div>
@@ -158,7 +194,7 @@ export const BatchRankingShortlist: React.FC = () => {
                 <th className="p-4">Matched Skills (Verified)</th>
                 <th className="p-4">Evidence Gaps</th>
                 <th className="p-4">Explanation & Rationale</th>
-                <th className="p-4 text-right">Recruiter Shortlist</th>
+                <th className="p-4 text-right">Shortlist Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -279,7 +315,7 @@ export const BatchRankingShortlist: React.FC = () => {
                       className="gap-1 font-bold whitespace-nowrap"
                     >
                       <FileCheck2 className="w-3.5 h-3.5" />
-                      <span>{cand.isShortlisted ? 'Approved for Recruiter' : 'Approve Shortlist'}</span>
+                      <span>{cand.isShortlisted ? 'Shortlisted' : 'Add to Shortlist'}</span>
                     </Button>
                   </td>
                 </tr>
@@ -333,9 +369,9 @@ export const BatchRankingShortlist: React.FC = () => {
 
             <div className="p-3 rounded-lg bg-slate-900 text-slate-200 text-xs flex items-center justify-between">
               <div>
-                <p className="font-bold">Controlled Evidence Sharing:</p>
+                <p className="font-bold">Verified Evidence Preservation:</p>
                 <p className="text-[11px] text-slate-400">
-                  Approving shares only job-relevant assessment scores and evaluated code. Private student documents remain protected.
+                  Approved candidate records include proctored benchmarks and verified repository audits for audit compliance.
                 </p>
               </div>
               <Button
@@ -346,7 +382,7 @@ export const BatchRankingShortlist: React.FC = () => {
                   setIsDetailOpen(false);
                 }}
               >
-                {selectedCandidate.isShortlisted ? 'In Shortlist' : 'Approve to Shortlist'}
+                {selectedCandidate.isShortlisted ? 'In Shortlist' : 'Add to Shortlist'}
               </Button>
             </div>
           </div>

@@ -36,14 +36,6 @@ export const DEMO_USERS: Record<string, UserProfile> = {
     department: 'Central Placement Cell',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=250',
   },
-  company: {
-    id: 'recruiter-demo-001',
-    name: 'Sarah Jenkins',
-    email: 's.jenkins@cloudscale.io',
-    role: 'COMPANY_RECRUITER',
-    companyName: 'CloudScale Technologies',
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=250',
-  },
 };
 
 export const DEMO_SKILLS: StudentSkill[] = [
@@ -598,8 +590,8 @@ export const DEMO_APPLICATIONS: Application[] = [
         fromStage: 'SHORTLISTED',
         toStage: 'TECHNICAL_ASSESSMENT',
         timestamp: '2026-10-14 02:00 PM',
-        actorName: 'Sarah Jenkins',
-        actorRole: 'COMPANY_RECRUITER',
+        actorName: 'Dr. Ramesh Sharma',
+        actorRole: 'PLACEMENT_OFFICER',
         notes: 'Candidate evidence meets core requirements. Fast-tracked past preliminary screening.',
       },
       {
@@ -608,9 +600,9 @@ export const DEMO_APPLICATIONS: Application[] = [
         fromStage: 'TECHNICAL_ASSESSMENT',
         toStage: 'INTERVIEW',
         timestamp: '2026-10-15 10:15 AM',
-        actorName: 'Sarah Jenkins',
-        actorRole: 'COMPANY_RECRUITER',
-        notes: 'Scheduled for virtual technical interview with Platform Lead.',
+        actorName: 'Dr. Ramesh Sharma',
+        actorRole: 'PLACEMENT_OFFICER',
+        notes: 'Scheduled for virtual technical interview round.',
       },
     ],
   },

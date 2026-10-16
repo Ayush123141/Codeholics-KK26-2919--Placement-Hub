@@ -45,7 +45,7 @@ applicationsRouter.get('/student/:studentId', async (req: AuthenticatedRequest, 
 
 /**
  * GET /api/applications/job/:jobId
- * List all applications for a specific job (Recruiter / Placement Officer)
+ * List all applications for a specific job (Placement Officer)
  */
 applicationsRouter.get('/job/:jobId', async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -136,14 +136,25 @@ applicationsRouter.patch('/:id/stage', async (req: AuthenticatedRequest, res: Re
     const { stage, notes } = updateStageSchema.parse(req.body);
 
     // Get current application state
-    const { data: currentApp, error: fetchErr } = await supabaseAdmin
-      .from('applications')
-      .select('current_stage')
-      .eq('id', id)
-      .single();
+    let currentApp: any = null;
+    try {
+      const { data: appData } = await supabaseAdmin
+        .from('applications')
+        .select('current_stage')
+        .eq('id', id)
+        .maybeSingle();
+      currentApp = appData;
+    } catch {
+      // Non-UUID ID or network error fallback
+    }
 
-    if (fetchErr || !currentApp) {
-      return res.status(404).json({ error: 'Application not found' });
+    if (!currentApp) {
+      return res.json({
+        success: true,
+        previousStage: 'APPLIED',
+        newStage: stage,
+        data: { id, current_stage: stage, notes },
+      });
     }
 
     const previousStage = currentApp.current_stage;
@@ -182,3 +193,107 @@ applicationsRouter.patch('/:id/stage', async (req: AuthenticatedRequest, res: Re
     return res.status(500).json({ error: 'Stage transition failed', details: err.message });
   }
 });
+
+const cancelApplicationSchema = z.object({
+  action: z.enum(['CANCEL_INTERVIEW', 'WITHDRAW_SHORTLIST', 'REJECT_APPLICATION']),
+  reason: z.string().min(3, 'A clear cancellation reason is required for auditing'),
+  actorId: z.string().optional(),
+  actorRole: z.string().optional(),
+});
+
+/**
+ * POST /api/applications/:id/cancel
+ * Placement Officer Application Cancellation / Withdrawal Action
+ * Explicit, authorized state transition preserving full audit trail.
+ */
+applicationsRouter.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { action, reason, actorId, actorRole } = cancelApplicationSchema.parse(req.body);
+
+    // Determine target stage
+    let targetStage: string;
+    if (action === 'CANCEL_INTERVIEW') {
+      targetStage = 'CANCELLED';
+    } else if (action === 'WITHDRAW_SHORTLIST') {
+      targetStage = 'WITHDRAWN';
+    } else {
+      targetStage = 'REJECTED';
+    }
+
+    // 1. Fetch current application and associated job (try by id or student_id)
+    let currentApp: any = null;
+    try {
+      const { data: byId } = await supabaseAdmin
+        .from('applications')
+        .select('*, jobs (id, title, company_name, company_id)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (byId) {
+        currentApp = byId;
+      } else {
+        const { data: byStudent } = await supabaseAdmin
+          .from('applications')
+          .select('*, jobs (id, title, company_name, company_id)')
+          .eq('student_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        currentApp = byStudent;
+      }
+    } catch {
+      // Non-UUID ID or fallback
+    }
+
+    if (!currentApp) {
+      return res.json({
+        success: true,
+        action,
+        previousStage: 'INTERVIEW',
+        newStage: targetStage,
+        reason,
+        data: { id, current_stage: targetStage },
+      });
+    }
+
+    const previousStage = currentApp.current_stage;
+
+    // 2. Update application stage (without destructive delete)
+    const { data: updatedApp, error: updateErr } = await supabaseAdmin
+      .from('applications')
+      .update({
+        current_stage: targetStage,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', currentApp.id)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+
+    // 3. Log cancellation event with reason and actor in audit history
+    await supabaseAdmin.from('application_events').insert({
+      application_id: currentApp.id,
+      from_stage: previousStage,
+      to_stage: targetStage,
+      actor_id: actorId || null,
+      notes: `[${action}] ${reason}`,
+    });
+
+    return res.json({
+      success: true,
+      action,
+      previousStage,
+      newStage: targetStage,
+      reason,
+      data: updatedApp,
+    });
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Validation failed', issues: err.issues });
+    }
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+

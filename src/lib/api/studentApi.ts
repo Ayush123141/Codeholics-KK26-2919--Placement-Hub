@@ -21,7 +21,9 @@ import {
   Job, 
   Application, 
   ResumeBulletItem, 
-  ResumeClaim 
+  ResumeClaim,
+  AssessmentItem,
+  AssessmentAttemptResult
 } from '@/types';
 
 // In-memory / session store for stateful UI mutations during offline or development mode
@@ -232,6 +234,115 @@ export const studentApi = {
           contradicted: 1,
         },
       };
+    }
+  },
+
+  async getAssessments(): Promise<AssessmentItem[]> {
+    try {
+      const res = await request<{ success: boolean; assessments: AssessmentItem[] }>('/api/assessments');
+      return res.assessments || [];
+    } catch {
+      return [
+        {
+          id: 'assess-react-v1',
+          skillId: 'skill-react',
+          title: 'React Fundamentals & Component Architecture',
+          version: '1.0',
+          durationMinutes: 15,
+          instructions: 'Answer all questions objectively. Passing threshold is 70%. Answers are graded deterministically server-side.',
+          questionCount: 4,
+          questions: [
+            {
+              id: 'q1',
+              question: 'What hook is used to run side effects in a function component?',
+              options: ['useMemo', 'useEffect', 'useState', 'useRef'],
+            },
+            {
+              id: 'q2',
+              question: 'What is the primary purpose of keys in React lists?',
+              options: [
+                'To style DOM elements uniquely',
+                'To identify which items have changed, been added, or removed for reconciliation',
+                'To pass props between siblings',
+                'To bind event handlers automatically',
+              ],
+            },
+            {
+              id: 'q3',
+              question: 'How does React handle state batching in React 18+?',
+              options: [
+                'Only synchronous events inside React handlers are batched',
+                'State updates are never batched',
+                'Automatic batching applies across promises, setTimeout, and native event handlers',
+                'Batching must be manually enabled via unstable_batchedUpdates',
+              ],
+            },
+            {
+              id: 'q4',
+              question: 'Which of the following creates an unmodifiable memoized callback?',
+              options: ['useMemo', 'useCallback', 'useReducer', 'useLayoutEffect'],
+            },
+          ],
+        },
+        {
+          id: 'assess-nodejs-v1',
+          skillId: 'skill-nodejs',
+          title: 'Node.js Core Architecture & Asynchronous I/O',
+          version: '1.0',
+          durationMinutes: 15,
+          instructions: 'Answer all questions objectively. Passing threshold is 70%.',
+          questionCount: 3,
+          questions: [
+            {
+              id: 'q1',
+              question: 'Which phase of the Node.js event loop executes setImmediate() callbacks?',
+              options: ['Timers', 'Pending callbacks', 'Poll', 'Check'],
+            },
+            {
+              id: 'q2',
+              question: 'What is the main benefit of Node.js Streams?',
+              options: [
+                'Encrypting data at rest',
+                'Processing large chunks of data piece-by-piece without buffering everything in RAM',
+                'Enabling multi-threading without worker_threads',
+                'Converting callbacks into Promises automatically',
+              ],
+            },
+            {
+              id: 'q3',
+              question: 'What happens if an unhandled promise rejection occurs in modern Node.js?',
+              options: [
+                'It is silently ignored',
+                'The process terminates with a non-zero exit code by default',
+                'It retries the operation 3 times',
+                'It pauses execution indefinitely',
+              ],
+            },
+          ],
+        },
+      ];
+    }
+  },
+
+  async submitAssessment(
+    studentId: string,
+    assessmentId: string,
+    answers: number[]
+  ): Promise<{ attempt: AssessmentAttemptResult; message: string; evidence?: any }> {
+    return await request('/api/assessments/submit', {
+      method: 'POST',
+      body: JSON.stringify({ studentId, assessmentId, answers }),
+    });
+  },
+
+  async getStudentAssessmentAttempts(studentId: string): Promise<AssessmentAttemptResult[]> {
+    try {
+      const res = await request<{ success: boolean; attempts: AssessmentAttemptResult[] }>(
+        `/api/assessments/student/${studentId}`
+      );
+      return res.attempts || [];
+    } catch {
+      return [];
     }
   },
 };

@@ -16,17 +16,16 @@ import { NotFoundPage } from '@/pages/public/NotFoundPage';
 // Layouts
 import { StudentLayout } from '@/layouts/StudentLayout';
 import { PlacementLayout } from '@/layouts/PlacementLayout';
-import { CompanyLayout } from '@/layouts/CompanyLayout';
 
 // Student Portal Pages
 import { StudentDashboard } from '@/features/student/StudentDashboard';
 import { StudentProfile } from '@/features/student/StudentProfile';
+import { StudentAssessments } from '@/features/student/StudentAssessments';
 import { StudentEvidence } from '@/features/student/StudentEvidence';
 import { JobDiscovery } from '@/features/student/JobDiscovery';
 import { ResumeStudio } from '@/features/student/ResumeStudio';
 import { ResumeClaimReview } from '@/features/student/ResumeClaimReview';
 import { ApplicationTracker } from '@/features/student/ApplicationTracker';
-import { StudentAssessments } from '@/features/student/StudentAssessments';
 
 // Placement Officer Pages
 import { PlacementDashboard } from '@/features/placement/PlacementDashboard';
@@ -35,12 +34,6 @@ import { JobIngestionDedupe } from '@/features/placement/JobIngestionDedupe';
 import { StudentEvidenceOverview } from '@/features/placement/StudentEvidenceOverview';
 import { BatchRankingShortlist } from '@/features/placement/BatchRankingShortlist';
 import { ApplicationStageManager } from '@/features/placement/ApplicationStageManager';
-
-// Company Recruiter Pages
-import { CompanyDashboard } from '@/features/company/CompanyDashboard';
-import { VacancyManagement } from '@/features/company/VacancyManagement';
-import { CandidateShortlist } from '@/features/company/CandidateShortlist';
-import { InterviewPipeline } from '@/features/company/InterviewPipeline';
 
 export const AppRouter: React.FC = () => {
   const { user, role, switchRole } = useAuth();
@@ -51,9 +44,7 @@ export const AppRouter: React.FC = () => {
     user ||
     (currentRole === 'STUDENT'
       ? DEMO_USERS.student
-      : currentRole === 'PLACEMENT_OFFICER'
-      ? DEMO_USERS.placement
-      : DEMO_USERS.company);
+      : DEMO_USERS.placement);
 
   const handleRoleChange = (newRole: UserRole) => {
     switchRole(newRole);
@@ -98,8 +89,8 @@ export const AppRouter: React.FC = () => {
       children: [
         { index: true, element: <StudentDashboard /> },
         { path: 'profile', element: <StudentProfile /> },
-        { path: 'evidence', element: <StudentEvidence /> },
         { path: 'assessments', element: <StudentAssessments /> },
+        { path: 'evidence', element: <StudentEvidence /> },
         { path: 'jobs', element: <JobDiscovery /> },
         { path: 'resume-studio', element: <ResumeStudio /> },
         { path: 'claim-review', element: <ResumeClaimReview /> },
@@ -125,22 +116,14 @@ export const AppRouter: React.FC = () => {
         { path: 'applications', element: <ApplicationStageManager /> },
       ],
     },
-    // Company Recruiter Workspace
+    // Redirect any legacy /company attempts to placement workspace
+    {
+      path: '/company/*',
+      element: <Navigate to="/placement" replace />,
+    },
     {
       path: '/company',
-      element: (
-        <CompanyLayout
-          currentUser={currentUser}
-          currentRole={currentRole}
-          onRoleChange={handleRoleChange}
-        />
-      ),
-      children: [
-        { index: true, element: <CompanyDashboard /> },
-        { path: 'vacancies', element: <VacancyManagement /> },
-        { path: 'candidates', element: <CandidateShortlist /> },
-        { path: 'pipeline', element: <InterviewPipeline /> },
-      ],
+      element: <Navigate to="/placement" replace />,
     },
     {
       path: '*',

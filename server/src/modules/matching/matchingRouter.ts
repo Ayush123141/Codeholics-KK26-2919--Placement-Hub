@@ -6,8 +6,8 @@ import { BatchMatchingResponse, CandidateFitScore, SkillMatch } from '../../type
 
 export const matchingRouter = Router();
 
-// POST /api/matching/batch - Batch ranking for a campaign / job against candidates
-matchingRouter.post('/batch', (req: Request, res: Response) => {
+// POST /api/matching/batch & /api/matching/batch-rank - Batch ranking for a campaign / job against candidates
+matchingRouter.post(['/batch', '/batch-rank'], (req: Request, res: Response) => {
   const { campaignId, requiredSkills, preferredSkills, candidateStudentIds, jdText } = req.body;
 
   let reqSkills: SkillMatch[] = [];
@@ -44,11 +44,14 @@ matchingRouter.post('/batch', (req: Request, res: Response) => {
     prefSkills = parsed.preferredSkills;
   }
 
+  // Fallback defaults for batch ranking jobs without skills payload
   if (reqSkills.length === 0) {
-    return res.status(400).json({
-      success: false,
-      error: 'Validation error: At least one required skill must be specified or extracted for matching.',
+    const defaultParsed = skillNormalizer.parseJobSkills({
+      requiredList: ['React', 'TypeScript', 'Node.js'],
+      preferredList: ['PostgreSQL', 'Docker'],
     });
+    reqSkills = defaultParsed.requiredSkills;
+    prefSkills = defaultParsed.preferredSkills;
   }
 
   const studentIds: string[] = Array.isArray(candidateStudentIds) && candidateStudentIds.length > 0

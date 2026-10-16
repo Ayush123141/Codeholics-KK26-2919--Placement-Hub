@@ -200,7 +200,7 @@ export const ApplicationTracker: React.FC = () => {
             </div>
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-500">
-              Application state changes are strictly authorized by placement officers and company recruiters.
+              Application state changes and stage transitions are strictly governed by authorized institutional placement officers.
             </div>
 
             <div className="flex justify-end pt-2">

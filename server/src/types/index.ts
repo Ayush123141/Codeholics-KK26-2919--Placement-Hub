@@ -30,7 +30,17 @@ export type EvidenceReviewStatus =
   | 'ISSUER_VERIFIED'
   | 'MANUALLY_REVIEWED'
   | 'UNVERIFIABLE'
-  | 'CONTRADICTED';
+  | 'CONTRADICTED'
+  | 'NEEDS_REVISION'
+  | 'REJECTED';
+
+export interface EvidenceStatusHistoryItem {
+  fromStatus?: EvidenceReviewStatus;
+  toStatus: EvidenceReviewStatus;
+  changedBy: string;
+  notes?: string;
+  timestamp: string;
+}
 
 export interface EvidenceRecord {
   id: string;
@@ -43,7 +53,9 @@ export interface EvidenceRecord {
   evidenceUrl?: string;
   reviewStatus: EvidenceReviewStatus;
   reviewedBy?: string;
+  reviewNotes?: string;
   recordedAt: string;
+  statusHistory?: EvidenceStatusHistoryItem[];
   metadata?: Record<string, unknown>;
 }
 
@@ -89,3 +101,24 @@ export interface ResumeClaimVerification {
   reason: string;
   matchingEvidenceIds: string[];
 }
+
+export interface MatchingResult {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  avatarUrl?: string;
+  department: string;
+  cgpa: number;
+  fitScore: number;
+  matchedSkills: string[];
+  partialEvidenceSkills: string[];
+  noEvidenceSkills: string[];
+  preferredGaps: string[];
+  explanation: string;
+  evidenceRefs: string[];
+  policyVersion: string;
+  isShortlisted: boolean;
+  assessmentScore?: number;
+  applicationStage?: string;
+}
+
