@@ -239,6 +239,95 @@ describe('Member 3 — Evidence Engine & Matching Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.attempt.score).toBe(100);
       expect(res.body.attempt.passed).toBe(true);
+      expect(res.body.evidence).not.toBeNull();
+      expect(res.body.evidence.reviewStatus).toBe('ISSUER_VERIFIED');
+    });
+
+    it('POST /api/assessments/project-eval records rubric and mints evidence artifacts', async () => {
+      const res = await request(app)
+        .post('/api/assessments/project-eval')
+        .send({
+          studentId: 'student-eval-test',
+          projectName: 'Microservices Placement Gateway',
+          skillIds: ['skill-nodejs', 'skill-postgres'],
+          reviewer: 'Prof. Alan Turing',
+          criteria: {
+            architecture: 24,
+            codeQuality: 23,
+            testCoverage: 22,
+            skillDemonstration: 24,
+          },
+          rationale: 'Outstanding backend architecture and database normalization.',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.evaluation.totalScore).toBe(93);
+      expect(res.body.evidenceArtifacts.length).toBe(2);
+      expect(res.body.evidenceArtifacts[0].reviewStatus).toBe('MANUALLY_REVIEWED');
+    });
+
+    it('PATCH /api/evidence/:id/status updates status with audit history and notes', async () => {
+      // 1. Create evidence
+      const createRes = await request(app)
+        .post('/api/evidence')
+        .send({
+          studentId: 'student-audit-001',
+          skillId: 'skill-react',
+          sourceType: 'project_eval',
+          title: 'Frontend Portfolio',
+          reviewStatus: 'NEEDS_REVIEW',
+        });
+
+      expect(createRes.status).toBe(201);
+      const evId = createRes.body.evidence.id;
+
+      // 2. Transition status with reviewer notes
+      const patchRes = await request(app)
+        .patch(`/api/evidence/${evId}/status`)
+        .send({
+          status: 'MANUALLY_REVIEWED',
+          reviewer: 'Placement Officer Dr. Sharma',
+          notes: 'Code reviewed and component hierarchy approved.',
+        });
+
+      expect(patchRes.status).toBe(200);
+      expect(patchRes.body.evidence.reviewStatus).toBe('MANUALLY_REVIEWED');
+      expect(patchRes.body.evidence.statusHistory.length).toBe(2);
+    });
+
+    it('PATCH /api/evidence/:id/status rejects self-approval by students', async () => {
+      const createRes = await request(app)
+        .post('/api/evidence')
+        .send({
+          studentId: 'student-audit-002',
+          skillId: 'skill-react',
+          sourceType: 'project_eval',
+          title: 'Student Project Submission',
+          reviewStatus: 'NEEDS_REVIEW',
+        });
+
+      const evId = createRes.body.evidence.id;
+
+      const patchRes = await request(app)
+        .patch(`/api/evidence/${evId}/status`)
+        .send({
+          status: 'MANUALLY_REVIEWED',
+          reviewer: 'student-audit-002',
+        });
+
+      expect(patchRes.status).toBe(403);
+      expect(patchRes.body.error).toContain('Students cannot review or approve their own evidence');
+    });
+
+    it('GET /api/skills/student/:studentId/structured-evidence provides structured breakdown for matching', async () => {
+      const res = await request(app).get('/api/skills/student/student-001/structured-evidence');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.skills)).toBe(true);
+
+      const reactSkill = res.body.skills.find((s: any) => s.skillId === 'skill-react');
+      expect(reactSkill).toBeDefined();
+      expect(reactSkill.totalEvidenceCount).toBeGreaterThan(0);
     });
 
     it('POST /api/certificates records certificate with verification check', async () => {

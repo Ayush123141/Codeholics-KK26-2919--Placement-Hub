@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { DEMO_BATCH_RANKING, DEMO_EVIDENCE } from '@/lib/api/demoData';
+import { placementApi } from '@/lib/api/placementApi';
 import { MatchingResult, EvidenceRecord } from '@/types';
 
 export const StudentEvidenceOverview: React.FC = () => {
@@ -172,19 +173,66 @@ export const StudentEvidenceOverview: React.FC = () => {
 
             <div className="space-y-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Verified Evidence Artifacts
+                Verified Evidence Artifacts & Scrutiny
               </h4>
               <div className="space-y-2">
                 {DEMO_EVIDENCE.slice(0, 3).map((ev) => (
-                  <div key={ev.id} className="p-3 rounded-xl border border-slate-200 bg-white text-xs space-y-1">
+                  <div key={ev.id} className="p-3 rounded-xl border border-slate-200 bg-white text-xs space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900">{ev.title}</span>
-                      <Badge variant="success" size="sm">Verified</Badge>
+                      <Badge variant={ev.status === 'VERIFIED' ? 'success' : 'default'} size="sm">
+                        {ev.status}
+                      </Badge>
                     </div>
                     <p className="text-slate-600 text-[11px]">{ev.details}</p>
                     <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400">
                       <span>Verifier: {ev.verifier}</span>
                       <span>Date: {ev.date}</span>
+                    </div>
+
+                    {/* Reviewer Action Bar */}
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        Scrutiny Action:
+                      </span>
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            placementApi.reviewEvidence(ev.id, 'MANUALLY_REVIEWED', 'Dr. Ramesh Sharma (Placement Cell)', 'Evidence approved following code review')
+                              .catch(() => {});
+                            alert(`Evidence artifact ${ev.id} marked as MANUALLY_REVIEWED.`);
+                          }}
+                          className="text-[10px] text-emerald-700 hover:bg-emerald-50 h-7 px-2"
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            placementApi.reviewEvidence(ev.id, 'NEEDS_REVISION', 'Dr. Ramesh Sharma (Placement Cell)', 'Insufficient test coverage')
+                              .catch(() => {});
+                            alert(`Revision requested for artifact ${ev.id}.`);
+                          }}
+                          className="text-[10px] text-amber-700 hover:bg-amber-50 h-7 px-2"
+                        >
+                          Request Revision
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            placementApi.reviewEvidence(ev.id, 'REJECTED', 'Dr. Ramesh Sharma (Placement Cell)', 'Unverifiable project link')
+                              .catch(() => {});
+                            alert(`Artifact ${ev.id} rejected.`);
+                          }}
+                          className="text-[10px] text-rose-700 hover:bg-rose-50 h-7 px-2"
+                        >
+                          Reject
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}

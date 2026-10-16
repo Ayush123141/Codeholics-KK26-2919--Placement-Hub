@@ -232,3 +232,30 @@ export interface ResumeBulletItem {
   evidenceLabels: string[];
   isVerified: boolean;
 }
+
+export interface AssessmentQuestion {
+  id: string;
+  question: string;
+  options: string[];
+}
+
+export interface AssessmentItem {
+  id: string;
+  skillId: string;
+  title: string;
+  version: string;
+  durationMinutes: number;
+  instructions: string;
+  questionCount: number;
+  questions: AssessmentQuestion[];
+}
+
+export interface AssessmentAttemptResult {
+  id: string;
+  studentId: string;
+  assessmentId: string;
+  skillId: string;
+  score: number;
+  passed: boolean;
+  completedAt: string;
+}

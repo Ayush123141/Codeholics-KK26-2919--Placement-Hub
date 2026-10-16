@@ -8,10 +8,19 @@ export class EvidenceRegistryService {
    * Add or register an evidence item for a student and skill
    */
   public registerEvidence(record: Omit<EvidenceRecord, 'id' | 'recordedAt'>): EvidenceRecord {
+    const timestamp = new Date().toISOString();
     const evidence: EvidenceRecord = {
       ...record,
       id: `ev-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-      recordedAt: new Date().toISOString(),
+      recordedAt: timestamp,
+      statusHistory: [
+        {
+          toStatus: record.reviewStatus,
+          changedBy: record.reviewedBy || 'System Ingestion',
+          notes: record.reviewNotes || 'Initial artifact registration',
+          timestamp,
+        },
+      ],
     };
     evidenceStore.push(evidence);
     return evidence;
@@ -34,18 +43,36 @@ export class EvidenceRegistryService {
   }
 
   /**
-   * Update review status of an evidence item
+   * Update review status of an evidence item with full audit history
    */
   public updateReviewStatus(
     evidenceId: string,
     status: EvidenceReviewStatus,
-    reviewer: string
+    reviewer: string,
+    notes?: string
   ): EvidenceRecord | null {
     const item = evidenceStore.find((e) => e.id === evidenceId);
     if (!item) return null;
 
+    // Security requirement: Students cannot approve their own submissions
+    if (reviewer.toLowerCase().includes('student') || reviewer === item.studentId) {
+      throw new Error('Permission denied: Students cannot review or approve their own evidence submissions.');
+    }
+
+    const previousStatus = item.reviewStatus;
     item.reviewStatus = status;
     item.reviewedBy = reviewer;
+    if (notes) item.reviewNotes = notes;
+
+    if (!item.statusHistory) item.statusHistory = [];
+    item.statusHistory.push({
+      fromStatus: previousStatus,
+      toStatus: status,
+      changedBy: reviewer,
+      notes: notes || `Status updated from ${previousStatus} to ${status}`,
+      timestamp: new Date().toISOString(),
+    });
+
     return item;
   }
 }
@@ -62,7 +89,7 @@ evidenceRouter.get('/student/:studentId', (req: Request, res: Response) => {
 
 // POST /api/evidence - Manually or system-register evidence
 evidenceRouter.post('/', (req: Request, res: Response) => {
-  const { studentId, skillId, sourceType, title, description, score, evidenceUrl, reviewStatus } =
+  const { studentId, skillId, sourceType, title, description, score, evidenceUrl, reviewStatus, reviewedBy, reviewNotes } =
     req.body;
 
   if (!studentId || !skillId || !sourceType || !title) {
@@ -81,26 +108,33 @@ evidenceRouter.post('/', (req: Request, res: Response) => {
     score: typeof score === 'number' ? score : undefined,
     evidenceUrl,
     reviewStatus: (reviewStatus as EvidenceReviewStatus) || 'NEEDS_REVIEW',
+    reviewedBy,
+    reviewNotes,
   });
 
   return res.status(201).json({ success: true, evidence: registered });
 });
 
-// PATCH /api/evidence/:id/status - Update evidence status
+// PATCH /api/evidence/:id/status - Update evidence status with decision and notes
 evidenceRouter.patch('/:id/status', (req: Request, res: Response) => {
-  const { status, reviewer } = req.body;
+  const { status, reviewer, notes } = req.body;
   if (!status || !reviewer) {
     return res.status(400).json({ success: false, error: 'status and reviewer are required.' });
   }
 
-  const updated = evidenceRegistryService.updateReviewStatus(
-    req.params.id,
-    status as EvidenceReviewStatus,
-    reviewer
-  );
-  if (!updated) {
-    return res.status(404).json({ success: false, error: 'Evidence record not found.' });
-  }
+  try {
+    const updated = evidenceRegistryService.updateReviewStatus(
+      req.params.id,
+      status as EvidenceReviewStatus,
+      reviewer,
+      notes
+    );
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Evidence record not found.' });
+    }
 
-  return res.json({ success: true, evidence: updated });
+    return res.json({ success: true, evidence: updated });
+  } catch (err: any) {
+    return res.status(403).json({ success: false, error: err.message });
+  }
 });

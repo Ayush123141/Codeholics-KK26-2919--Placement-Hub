@@ -11,6 +11,7 @@ import { CompanyLayout } from '@/layouts/CompanyLayout';
 // Student Portal Pages
 import { StudentDashboard } from '@/features/student/StudentDashboard';
 import { StudentProfile } from '@/features/student/StudentProfile';
+import { StudentAssessments } from '@/features/student/StudentAssessments';
 import { StudentEvidence } from '@/features/student/StudentEvidence';
 import { JobDiscovery } from '@/features/student/JobDiscovery';
 import { ResumeStudio } from '@/features/student/ResumeStudio';
@@ -63,6 +64,7 @@ export const AppRouter: React.FC = () => {
       children: [
         { index: true, element: <StudentDashboard /> },
         { path: 'profile', element: <StudentProfile /> },
+        { path: 'assessments', element: <StudentAssessments /> },
         { path: 'evidence', element: <StudentEvidence /> },
         { path: 'jobs', element: <JobDiscovery /> },
         { path: 'resume-studio', element: <ResumeStudio /> },

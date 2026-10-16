@@ -30,7 +30,17 @@ export type EvidenceReviewStatus =
   | 'ISSUER_VERIFIED'
   | 'MANUALLY_REVIEWED'
   | 'UNVERIFIABLE'
-  | 'CONTRADICTED';
+  | 'CONTRADICTED'
+  | 'NEEDS_REVISION'
+  | 'REJECTED';
+
+export interface EvidenceStatusHistoryItem {
+  fromStatus?: EvidenceReviewStatus;
+  toStatus: EvidenceReviewStatus;
+  changedBy: string;
+  notes?: string;
+  timestamp: string;
+}
 
 export interface EvidenceRecord {
   id: string;
@@ -43,7 +53,9 @@ export interface EvidenceRecord {
   evidenceUrl?: string;
   reviewStatus: EvidenceReviewStatus;
   reviewedBy?: string;
+  reviewNotes?: string;
   recordedAt: string;
+  statusHistory?: EvidenceStatusHistoryItem[];
   metadata?: Record<string, unknown>;
 }
 

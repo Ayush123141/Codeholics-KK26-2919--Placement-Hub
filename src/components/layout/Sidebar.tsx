@@ -36,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
   const studentNav: NavItem[] = [
     { label: 'Overview', path: '/student', icon: <LayoutDashboard className="w-4 h-4" /> },
     { label: 'Candidate Profile', path: '/student/profile', icon: <User className="w-4 h-4" /> },
+    { label: 'Skill Assessments', path: '/student/assessments', icon: <Award className="w-4 h-4" />, badge: 'Proctored' },
     { label: 'Evidence & Skills', path: '/student/evidence', icon: <ShieldCheck className="w-4 h-4" />, badge: '3 Verified' },
     { label: 'Explore Vacancies', path: '/student/jobs', icon: <Briefcase className="w-4 h-4" /> },
     { label: 'Resume Studio', path: '/student/resume-studio', icon: <FileText className="w-4 h-4" /> },

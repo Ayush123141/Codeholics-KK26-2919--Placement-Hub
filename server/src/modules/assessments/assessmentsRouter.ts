@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { evidenceRegistryService } from '../evidence/evidenceRouter';
 
 export interface AssessmentQuestion {
   id: string;
@@ -12,6 +13,8 @@ export interface AssessmentDefinition {
   skillId: string;
   title: string;
   version: string;
+  durationMinutes?: number;
+  instructions?: string;
   questions: AssessmentQuestion[];
 }
 
@@ -166,6 +169,8 @@ assessmentsRouter.get('/', (_req: Request, res: Response) => {
     skillId: def.skillId,
     title: def.title,
     version: def.version,
+    durationMinutes: def.durationMinutes || 15,
+    instructions: def.instructions || 'Answer all questions objectively. Passing threshold is 70%. Attempts are verified server-side.',
     questionCount: def.questions.length,
     questions: def.questions.map((q) => ({
       id: q.id,
@@ -217,6 +222,27 @@ assessmentsRouter.post('/submit', (req: Request, res: Response) => {
 
   assessmentAttemptsStore.push(attempt);
 
+  // Feature B/C: When an assessment passes, automatically mint an ISSUER_VERIFIED evidence record
+  let evidenceRecord = null;
+  if (passed) {
+    evidenceRecord = evidenceRegistryService.registerEvidence({
+      studentId,
+      skillId: def.skillId,
+      sourceType: 'assessment',
+      title: `${def.title} (v${def.version})`,
+      description: `Passed proctored benchmark with ${score}% deterministic objective accuracy.`,
+      score,
+      reviewStatus: 'ISSUER_VERIFIED',
+      reviewedBy: 'ProofHire Automated Assessment Engine',
+      metadata: {
+        assessmentId: def.id,
+        attemptId: attempt.id,
+        questionsCount: def.questions.length,
+        correctCount,
+      },
+    });
+  }
+
   return res.json({
     success: true,
     attempt: {
@@ -228,7 +254,8 @@ assessmentsRouter.post('/submit', (req: Request, res: Response) => {
       passed: attempt.passed,
       completedAt: attempt.completedAt,
     },
-    message: passed ? 'Assessment Passed! Credited to evidence.' : 'Assessment Completed.',
+    evidence: evidenceRecord,
+    message: passed ? 'Assessment Passed! Verifiable evidence artifact registered.' : 'Assessment Completed (Score below 70% passing threshold).',
   });
 });
 
@@ -247,7 +274,7 @@ assessmentsRouter.post('/project-eval', (req: Request, res: Response) => {
   if (!studentId || !projectName || !reviewer || !criteria) {
     return res.status(400).json({
       success: false,
-      error: 'Missing required project evaluation fields.',
+      error: 'Missing required project evaluation fields: studentId, projectName, reviewer, criteria.',
     });
   }
 
@@ -261,7 +288,7 @@ assessmentsRouter.post('/project-eval', (req: Request, res: Response) => {
     id: `eval-${Date.now()}`,
     projectId: projectId || `proj-${Date.now()}`,
     studentId,
-    skillIds: Array.isArray(skillIds) ? skillIds : [],
+    skillIds: Array.isArray(skillIds) && skillIds.length > 0 ? skillIds : ['skill-react'],
     projectName,
     repoUrl,
     reviewer,
@@ -278,8 +305,30 @@ assessmentsRouter.post('/project-eval', (req: Request, res: Response) => {
 
   projectEvaluationsStore.push(evalRecord);
 
+  // Mint MANUALLY_REVIEWED evidence artifacts for each skill scrutinized in this project
+  const createdEvidence: any[] = [];
+  for (const sId of evalRecord.skillIds) {
+    const ev = evidenceRegistryService.registerEvidence({
+      studentId,
+      skillId: sId,
+      sourceType: 'project_eval',
+      title: `Project Scrutiny: ${projectName}`,
+      description: `${rationale || 'Evaluated against departmental rubric'}. Total Rubric Score: ${totalScore}/100.`,
+      score: totalScore,
+      evidenceUrl: repoUrl,
+      reviewStatus: totalScore >= 70 ? 'MANUALLY_REVIEWED' : 'NEEDS_REVIEW',
+      reviewedBy: reviewer,
+      metadata: {
+        evaluationId: evalRecord.id,
+        rubricBreakdown: evalRecord.criteria,
+      },
+    });
+    createdEvidence.push(ev);
+  }
+
   return res.status(201).json({
     success: true,
     evaluation: evalRecord,
+    evidenceArtifacts: createdEvidence,
   });
 });
