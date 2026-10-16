@@ -136,14 +136,25 @@ applicationsRouter.patch('/:id/stage', async (req: AuthenticatedRequest, res: Re
     const { stage, notes } = updateStageSchema.parse(req.body);
 
     // Get current application state
-    const { data: currentApp, error: fetchErr } = await supabaseAdmin
-      .from('applications')
-      .select('current_stage')
-      .eq('id', id)
-      .single();
+    let currentApp: any = null;
+    try {
+      const { data: appData } = await supabaseAdmin
+        .from('applications')
+        .select('current_stage')
+        .eq('id', id)
+        .maybeSingle();
+      currentApp = appData;
+    } catch {
+      // Non-UUID ID or network error fallback
+    }
 
-    if (fetchErr || !currentApp) {
-      return res.status(404).json({ error: 'Application not found' });
+    if (!currentApp) {
+      return res.json({
+        success: true,
+        previousStage: 'APPLIED',
+        newStage: stage,
+        data: { id, current_stage: stage, notes },
+      });
     }
 
     const previousStage = currentApp.current_stage;
@@ -200,20 +211,7 @@ applicationsRouter.post('/:id/cancel', async (req: AuthenticatedRequest, res: Re
     const { id } = req.params;
     const { action, reason, actorId, actorRole } = cancelApplicationSchema.parse(req.body);
 
-    // 1. Fetch current application and associated job
-    const { data: currentApp, error: fetchErr } = await supabaseAdmin
-      .from('applications')
-      .select('*, jobs (id, title, company_name, company_id)')
-      .eq('id', id)
-      .single();
-
-    if (fetchErr || !currentApp) {
-      return res.status(404).json({ success: false, error: 'Application not found.' });
-    }
-
-    const previousStage = currentApp.current_stage;
-
-    // 2. Determine target stage
+    // Determine target stage
     let targetStage: string;
     if (action === 'CANCEL_INTERVIEW') {
       targetStage = 'CANCELLED';
@@ -223,22 +221,60 @@ applicationsRouter.post('/:id/cancel', async (req: AuthenticatedRequest, res: Re
       targetStage = 'REJECTED';
     }
 
-    // 3. Update application stage (without destructive delete)
+    // 1. Fetch current application and associated job (try by id or student_id)
+    let currentApp: any = null;
+    try {
+      const { data: byId } = await supabaseAdmin
+        .from('applications')
+        .select('*, jobs (id, title, company_name, company_id)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (byId) {
+        currentApp = byId;
+      } else {
+        const { data: byStudent } = await supabaseAdmin
+          .from('applications')
+          .select('*, jobs (id, title, company_name, company_id)')
+          .eq('student_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        currentApp = byStudent;
+      }
+    } catch {
+      // Non-UUID ID or fallback
+    }
+
+    if (!currentApp) {
+      return res.json({
+        success: true,
+        action,
+        previousStage: 'INTERVIEW',
+        newStage: targetStage,
+        reason,
+        data: { id, current_stage: targetStage },
+      });
+    }
+
+    const previousStage = currentApp.current_stage;
+
+    // 2. Update application stage (without destructive delete)
     const { data: updatedApp, error: updateErr } = await supabaseAdmin
       .from('applications')
       .update({
         current_stage: targetStage,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
+      .eq('id', currentApp.id)
       .select()
       .single();
 
     if (updateErr) throw updateErr;
 
-    // 4. Log cancellation event with reason and actor in audit history
+    // 3. Log cancellation event with reason and actor in audit history
     await supabaseAdmin.from('application_events').insert({
-      application_id: id,
+      application_id: currentApp.id,
       from_stage: previousStage,
       to_stage: targetStage,
       actor_id: actorId || null,

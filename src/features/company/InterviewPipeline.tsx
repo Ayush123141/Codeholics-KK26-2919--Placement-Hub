@@ -11,6 +11,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { request } from '@/lib/api/client';
 import { companyApi } from '@/lib/api/companyApi';
 import { MatchingResult } from '@/types';
 
@@ -38,10 +39,9 @@ export const InterviewPipeline: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // Call live backend endpoint
-      await fetch(`http://localhost:5000/api/applications/${selectedCandidate.studentId}/cancel`, {
+      // Call live backend endpoint via client request
+      await request(`/api/applications/${selectedCandidate.studentId}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'CANCEL_INTERVIEW',
           reason: cancelReason.trim(),
