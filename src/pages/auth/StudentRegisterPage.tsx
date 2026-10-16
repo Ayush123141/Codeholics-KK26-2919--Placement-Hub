@@ -197,54 +197,59 @@ export const StudentRegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-b from-white via-amber-50/25 to-paper-alt flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans relative overflow-hidden">
+      <div className="max-w-3xl w-full mx-auto space-y-6 relative z-10">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <Link
               to="/login"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 mb-2 font-semibold"
+              className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-500 hover:text-ink mb-2 font-semibold transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to login</span>
             </Link>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Student Registration & Resume Ingestion
+            <span className="eyebrow !mb-1">Student Onboarding</span>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+              Registration & Resume Ingestion
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
               Create your candidate profile. Upload a resume to automatically extract your skills, education, and projects.
             </p>
           </div>
 
-          {/* Stepper indicator */}
-          <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-bold">
+          {/* Stepper indicator: Details → Resume → Review → Confirm */}
+          <div className="flex items-center gap-1.5 self-start sm:self-auto text-xs font-mono font-bold flex-wrap">
             <span
-              className={`px-3 py-1 rounded-full ${
-                step === 1 ? 'bg-brand-600 text-white' : 'bg-emerald-100 text-emerald-800'
+              className={`px-3 py-1 rounded-full transition-colors ${
+                step === 1 ? 'bg-brand-500 text-ink shadow-xs' : 'bg-fresh/15 text-emerald-900 border border-emerald-300'
               }`}
             >
-              1. Account
+              1. Details
             </span>
             <span className="text-slate-300">→</span>
             <span
-              className={`px-3 py-1 rounded-full ${
+              className={`px-3 py-1 rounded-full transition-colors ${
                 step === 2
-                  ? 'bg-brand-600 text-white'
+                  ? 'bg-brand-500 text-ink shadow-xs'
                   : step > 2
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-slate-200 text-slate-600'
+                  ? 'bg-fresh/15 text-emerald-900 border border-emerald-300'
+                  : 'bg-slate-100 text-slate-500 border border-slate-200'
               }`}
             >
-              2. Resume Upload
+              2. Resume
             </span>
             <span className="text-slate-300">→</span>
             <span
-              className={`px-3 py-1 rounded-full ${
-                step === 3 ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-600'
+              className={`px-3 py-1 rounded-full transition-colors ${
+                step === 3 ? 'bg-brand-500 text-ink shadow-xs' : 'bg-slate-100 text-slate-500 border border-slate-200'
               }`}
             >
-              3. Review Extracted
+              3. Review
+            </span>
+            <span className="text-slate-300">→</span>
+            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-400 border border-slate-200">
+              4. Confirm
             </span>
           </div>
         </div>

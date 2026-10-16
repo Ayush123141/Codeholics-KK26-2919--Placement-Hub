@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Users, Eye, EyeOff, ArrowLeft, AlertCircle, ShieldCheck, Lock } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Lock, Eye, EyeOff, ArrowLeft, AlertCircle, ShieldCheck } from 'lucide-react';
+import { GlassPanel } from '@/components/ui/GlassPanel';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -39,38 +39,47 @@ export const PlacementLoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen bg-gradient-to-b from-white via-slate-100/60 to-paper-alt flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
+      {/* Soft background ambient gradient glow (Deep slate/navy ink tint) */}
+      <div 
+        className="absolute top-10 left-1/2 -translate-x-1/2 w-[650px] h-[650px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, rgba(15, 20, 32, 0.06) 0%, transparent 68%)',
+        }}
+      />
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <Link
           to="/login"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 mb-6 font-semibold"
+          className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-500 hover:text-ink mb-6 font-semibold transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to portal selection</span>
         </Link>
 
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+        {/* Officer Specific Distinct Badge */}
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="w-9 h-9 rounded-[10px] bg-ink text-white flex items-center justify-center shadow-xs">
             <Lock className="w-4 h-4 text-brand-400" />
           </div>
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-800 bg-slate-200 px-2.5 py-0.5 rounded-full border border-slate-300">
-            Institutional Administration
+          <span className="font-mono text-xs font-bold uppercase tracking-wider text-ink bg-slate-200 px-3 py-1 rounded-full border border-slate-300">
+            Placement Officer Portal
           </span>
         </div>
 
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-          Placement Officer Sign In
+        <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+          Officer Hub Sign In
         </h2>
-        <p className="text-xs text-slate-500 mt-1">
-          Authorized portal for cohort governance, job duplicate review, and batch candidate matching.
+        <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
+          Authorized console for campaign governance, candidate batch ranking, and job feed deduplication.
         </p>
       </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card className="p-8 shadow-sm border-slate-200">
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
+        <GlassPanel className="p-7 sm:p-8 shadow-glass border-white/70 bg-white/85">
           <form onSubmit={handleSubmit} className="space-y-4">
             {errorMessage && (
-              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+              <div className="p-3 rounded-[10px] bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                 <p className="leading-relaxed">{errorMessage}</p>
               </div>
@@ -92,7 +101,7 @@ export const PlacementLoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setErrorMessage('Administrative password resets must be authorized by your Central Campus IT administrator.')}
-                  className="text-[11px] text-slate-500 hover:text-slate-800 font-medium"
+                  className="font-mono text-[11px] text-slate-500 hover:text-ink font-medium"
                 >
                   Forgot password?
                 </button>
@@ -105,7 +114,7 @@ export const PlacementLoginPage: React.FC = () => {
                   value={password}
                   autoComplete="current-password"
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 pr-10 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/20 focus:border-slate-900"
+                  className="w-full px-3.5 py-2.5 pr-10 text-sm bg-white border border-slate-300 rounded-[8px] text-ink placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink"
                   required
                 />
                 <button
@@ -119,30 +128,31 @@ export const PlacementLoginPage: React.FC = () => {
               </div>
             </div>
 
-            <Button type="submit" variant="secondary" className="w-full font-semibold" isLoading={isLoading}>
-              Sign In to Placement Hub
+            <Button type="submit" variant="secondary" className="w-full font-bold mt-2" isLoading={isLoading}>
+              Sign In to Placement Hub →
             </Button>
           </form>
 
           {/* Quick Demo Fill Helper */}
-          <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-slate-500">Evaluating Demo?</span>
+          <div className="mt-5 pt-4 border-t border-line flex items-center justify-between text-xs">
+            <span className="text-slate-500 font-medium">Testing in Demo Mode?</span>
             <button
               type="button"
               onClick={handleQuickDemoFill}
-              className="text-xs font-bold text-slate-800 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md border border-slate-300 transition-colors"
+              className="font-mono text-xs font-bold text-ink hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-[6px] border border-slate-300 transition-colors"
             >
-              Fill Placement Lead Account
+              Fill Officer Demo
             </button>
           </div>
 
-          <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200 text-[11px] text-slate-500">
-            <p className="font-semibold text-slate-700">Role Security Notice:</p>
+          {/* Institutional Security Notice (Strictly NO public registration link) */}
+          <div className="mt-4 p-3 bg-paper-alt rounded-[10px] border border-line text-[11px] text-slate-500 leading-relaxed">
+            <p className="font-semibold text-ink">Role Security Notice:</p>
             <p>
-              Candidate accounts cannot sign in here. Role assignments are strictly audited in institutional database records.
+              Candidate accounts cannot access this administrative console. Role assignments are strictly audited in institutional database records.
             </p>
           </div>
-        </Card>
+        </GlassPanel>
       </div>
     </div>
   );
