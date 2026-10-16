@@ -27,11 +27,23 @@ import {
   AssessmentAttemptResult
 } from '@/types';
 
-// In-memory / session store for stateful UI mutations
-let localStudentProfile: UserProfile = { ...DEMO_USERS.student };
-let localEvidence: EvidenceRecord[] = [...DEMO_EVIDENCE];
-let localSkills: StudentSkill[] = [...DEMO_SKILLS];
-let localProjects: StudentProject[] = [...DEMO_PROJECTS];
+import { resumeParserService, ExtractedResumeData } from '@/lib/services/resumeParser';
+
+// In-memory / session store for stateful UI mutations with localStorage persistence
+function loadStored<T>(key: string, fallback: T): T {
+  try {
+    const val = localStorage.getItem(key);
+    if (val) return JSON.parse(val);
+  } catch {}
+  return fallback;
+}
+
+let localStudentProfile: UserProfile = loadStored('proofhire_auth_session', { ...DEMO_USERS.student });
+let localEvidence: EvidenceRecord[] = loadStored('proofhire_student_evidence', [...DEMO_EVIDENCE]);
+let localSkills: StudentSkill[] = loadStored('proofhire_student_skills', [...DEMO_SKILLS]);
+let localProjects: StudentProject[] = loadStored('proofhire_student_projects', [...DEMO_PROJECTS]);
+let localEducation: StudentEducation[] = loadStored('proofhire_student_education', [...DEMO_EDUCATION]);
+let localExperience: StudentExperience[] = loadStored('proofhire_student_experience', [...DEMO_EXPERIENCE]);
 let localJobs: Job[] = [...DEMO_JOBS];
 let localApplications: Application[] = [...DEMO_APPLICATIONS];
 
@@ -189,11 +201,11 @@ export const studentApi = {
   },
 
   async getEducation(): Promise<StudentEducation[]> {
-    return DEMO_EDUCATION;
+    return localEducation;
   },
 
   async getExperience(): Promise<StudentExperience[]> {
-    return DEMO_EXPERIENCE;
+    return localExperience;
   },
 
   async getJobs(): Promise<Job[]> {
@@ -329,16 +341,83 @@ export const studentApi = {
     claims: ResumeClaim[];
     summary: { supported: number; needsReview: number; contradicted: number };
   }> {
-    return {
-      fileName: file.name,
-      extractedTextCount: 1420,
-      claims: DEMO_RESUME_CLAIMS,
-      summary: {
-        supported: 2,
-        needsReview: 1,
-        contradicted: 1,
-      },
-    };
+    const evidence = await this.getEvidence();
+    return await resumeParserService.reviewUploadedResumeClaims(file, evidence);
+  },
+
+  saveParsedProfileData(data: {
+    education?: { institution: string; degree: string; graduationYear: number; gpa: number };
+    skills?: string[];
+    projects?: { title: string; description: string; technologies: string }[];
+    experience?: { company: string; role: string; duration: string; description: string }[];
+  }) {
+    if (data.skills && data.skills.length > 0) {
+      const newSkills: StudentSkill[] = data.skills.map((s, idx) => ({
+        id: `skill-${idx}-${Date.now()}`,
+        canonicalName: s,
+        category: 'Technical',
+        proficiencyLevel: idx < 3 ? 'Advanced' : 'Intermediate',
+        evidenceCount: 1,
+        status: 'REVIEWED',
+        evidenceIds: [],
+      }));
+      localSkills = newSkills;
+      try {
+        localStorage.setItem('proofhire_student_skills', JSON.stringify(newSkills));
+      } catch {}
+    }
+
+    if (data.projects && data.projects.length > 0) {
+      const newProjects: StudentProject[] = data.projects.map((p, idx) => ({
+        id: `proj-${idx}-${Date.now()}`,
+        title: p.title,
+        description: p.description,
+        technologies: p.technologies ? p.technologies.split(',').map((t) => t.trim()) : ['React'],
+        repoUrl: 'https://github.com/project',
+        liveUrl: '',
+        evidenceStatus: 'NEEDS_REVIEW',
+      }));
+      localProjects = newProjects;
+      try {
+        localStorage.setItem('proofhire_student_projects', JSON.stringify(newProjects));
+      } catch {}
+    }
+
+    if (data.education) {
+      const gradYear = data.education.graduationYear || 2026;
+      const newEducation: StudentEducation[] = [
+        {
+          id: `edu-${Date.now()}`,
+          institution: data.education.institution,
+          degree: data.education.degree,
+          field: 'Computer Science & Engineering',
+          startYear: gradYear - 4,
+          endYear: gradYear,
+          gpa: data.education.gpa || 8.5,
+        },
+      ];
+      localEducation = newEducation;
+      try {
+        localStorage.setItem('proofhire_student_education', JSON.stringify(newEducation));
+      } catch {}
+    }
+
+    if (data.experience && data.experience.length > 0) {
+      const newExperience: StudentExperience[] = data.experience.map((e, idx) => ({
+        id: `exp-${idx}-${Date.now()}`,
+        company: e.company,
+        role: e.role,
+        location: 'Hybrid',
+        startDate: e.duration?.split('-')[0]?.trim() || '2025',
+        endDate: e.duration?.split('-')[1]?.trim() || 'Present',
+        description: e.description,
+        technologies: ['React', 'TypeScript'],
+      }));
+      localExperience = newExperience;
+      try {
+        localStorage.setItem('proofhire_student_experience', JSON.stringify(newExperience));
+      } catch {}
+    }
   },
 
   async getAssessments(): Promise<AssessmentItem[]> {

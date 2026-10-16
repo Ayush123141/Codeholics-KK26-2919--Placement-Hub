@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, 
   Mail, 
@@ -11,7 +11,9 @@ import {
   CheckCircle2, 
   Plus, 
   Trash2,
-  Calendar
+  Calendar,
+  Sparkles,
+  UploadCloud
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -19,15 +21,18 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { studentApi } from '@/lib/api/studentApi';
+import { resumeParserService } from '@/lib/services/resumeParser';
 import { UserProfile, StudentProject, StudentEducation, StudentExperience } from '@/types';
 
 export const StudentProfile: React.FC = () => {
   const { showToast } = useToast();
+  const resumeInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [projects, setProjects] = useState<StudentProject[]>([]);
   const [education, setEducation] = useState<StudentEducation[]>([]);
   const [experience, setExperience] = useState<StudentExperience[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isParsingResume, setIsParsingResume] = useState(false);
   const [githubUrl, setGithubUrl] = useState('https://github.com/alexmorgan-dev');
 
   // Form states
@@ -89,6 +94,55 @@ export const StudentProfile: React.FC = () => {
     }
   };
 
+  const handleResumeUploadAndParse = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+    setIsParsingResume(true);
+    showToast('AI is extracting projects, skills & education from resume...', 'info');
+
+    try {
+      const parsed = await resumeParserService.parseResumeWithAI(file, {
+        name,
+        email,
+        college,
+        degree,
+        graduationYear: Number(graduationYear),
+        cgpa: Number(cgpa),
+      });
+
+      if (parsed.candidate.name) setName(parsed.candidate.name);
+      if (parsed.education.institution) setCollege(parsed.education.institution);
+      if (parsed.education.degree) setDegree(parsed.education.degree);
+      if (parsed.education.graduationYear) setGraduationYear(parsed.education.graduationYear);
+      if (parsed.education.gpa) setCgpa(parsed.education.gpa);
+
+      studentApi.saveParsedProfileData({
+        education: parsed.education,
+        skills: parsed.skills,
+        projects: parsed.projects,
+        experience: parsed.experience,
+      });
+
+      const [newProjects, newEducation, newExperience] = await Promise.all([
+        studentApi.getProjects(),
+        studentApi.getEducation(),
+        studentApi.getExperience(),
+      ]);
+
+      setProjects(newProjects);
+      setEducation(newEducation);
+      setExperience(newExperience);
+
+      showToast(`Resume dynamically parsed by AI! Updated ${newProjects.length} projects and ${parsed.skills.length} skills.`, 'success');
+    } catch (err: any) {
+      console.error('Resume re-parsing failed:', err);
+      showToast(err.message || 'Failed to parse resume with AI', 'error');
+    } finally {
+      setIsParsingResume(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
   if (!profile) return null;
 
   return (
@@ -101,14 +155,33 @@ export const StudentProfile: React.FC = () => {
             Maintain your official institutional record, verified projects, and public code repositories.
           </p>
         </div>
-        <Button
-          onClick={handleSaveProfile}
-          isLoading={isSaving}
-          className="gap-2 self-start sm:self-auto"
-        >
-          <Save className="w-4 h-4" />
-          <span>Save Changes</span>
-        </Button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <input
+            type="file"
+            ref={resumeInputRef}
+            accept=".pdf,.docx,.txt,.md"
+            className="hidden"
+            onChange={handleResumeUploadAndParse}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => resumeInputRef.current?.click()}
+            isLoading={isParsingResume}
+            className="gap-2 border-emerald-300 text-emerald-800 hover:bg-emerald-50 bg-emerald-50/40 text-xs font-semibold shadow-xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Update from Resume (AI)</span>
+          </Button>
+          <Button
+            onClick={handleSaveProfile}
+            isLoading={isSaving}
+            className="gap-2 self-start sm:self-auto"
+          >
+            <Save className="w-4 h-4" />
+            <span>Save Changes</span>
+          </Button>
+        </div>
       </div>
 
       {/* Basic & Academic Information */}

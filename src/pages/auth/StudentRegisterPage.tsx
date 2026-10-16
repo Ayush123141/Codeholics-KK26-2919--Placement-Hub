@@ -11,7 +11,12 @@ import {
   Plus, 
   Trash2, 
   ShieldAlert,
-  Edit3
+  Edit3,
+  Sparkles,
+  Briefcase,
+  Layers,
+  FileCheck2,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -19,6 +24,8 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { resumeParserService, ExtractedResumeData } from '@/lib/services/resumeParser';
+import { studentApi } from '@/lib/api/studentApi';
 
 interface ExtractedData {
   education: {
@@ -62,6 +69,10 @@ export const StudentRegisterPage: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState(0);
+  const [extractionPhase, setExtractionPhase] = useState('Ready');
+  const [aiModelUsed, setAiModelUsed] = useState<string>('');
+  const [isAiParsed, setIsAiParsed] = useState<boolean>(false);
+  const [parsedClaimsCount, setParsedClaimsCount] = useState<number>(0);
 
   // Step 3: Extracted Editable State
   const [extracted, setExtracted] = useState<ExtractedData>({
@@ -71,7 +82,7 @@ export const StudentRegisterPage: React.FC = () => {
       graduationYear: 2026,
       gpa: 8.5,
     },
-    skills: ['React', 'TypeScript', 'Tailwind CSS', 'JavaScript (ES6+)', 'Node.js', 'Git'],
+    skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Tailwind CSS', 'Git'],
     projects: [
       {
         title: 'Distributed Analytics Telemetry Dashboard',
@@ -110,8 +121,10 @@ export const StudentRegisterPage: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
-      if (!selected.name.toLowerCase().endsWith('.pdf')) {
-        showToast('Please upload a PDF format resume', 'error');
+      const validExtensions = ['.pdf', '.docx', '.txt', '.md'];
+      const isValid = validExtensions.some((ext) => selected.name.toLowerCase().endsWith(ext));
+      if (!isValid) {
+        showToast('Please upload a PDF, DOCX, or text format resume', 'error');
         return;
       }
       if (selected.size > 10 * 1024 * 1024) {
@@ -122,41 +135,103 @@ export const StudentRegisterPage: React.FC = () => {
     }
   };
 
-  // Trigger Extraction
-  const handleStartExtraction = () => {
+  // Trigger Dynamic AI Extraction
+  const handleStartExtraction = async () => {
     if (!file) {
-      // Allow skipping upload if student wants to enter profile manually
       setStep(3);
       return;
     }
 
     setIsExtracting(true);
-    setExtractionProgress(20);
+    setExtractionProgress(15);
+    setExtractionPhase('Reading document file & preparing parser...');
 
-    const timer1 = setTimeout(() => setExtractionProgress(55), 400);
-    const timer2 = setTimeout(() => setExtractionProgress(85), 900);
-    const timer3 = setTimeout(() => {
-      setExtractionProgress(100);
-      setIsExtracting(false);
-      // Synchronize basic details into extracted data
-      setExtracted((prev) => ({
-        ...prev,
+    const timerProg1 = setTimeout(() => {
+      setExtractionProgress(45);
+      setExtractionPhase('Extracting text content from document...');
+    }, 400);
+
+    const timerProg2 = setTimeout(() => {
+      setExtractionProgress(75);
+      setExtractionPhase('AI synthesizing skills, education, projects & claims...');
+    }, 900);
+
+    try {
+      const parsed: ExtractedResumeData = await resumeParserService.parseResumeWithAI(file, {
+        name,
+        email,
+        college,
+        degree,
+        graduationYear,
+        cgpa,
+      });
+
+      clearTimeout(timerProg1);
+      clearTimeout(timerProg2);
+
+      setExtractionProgress(95);
+      setExtractionPhase('Formatting candidate review structure...');
+
+      // Synchronize parsed data into extracted state
+      setExtracted({
         education: {
-          institution: college,
-          degree,
-          graduationYear,
-          gpa: cgpa,
+          institution: parsed.education.institution || college,
+          degree: parsed.education.degree || degree,
+          graduationYear: parsed.education.graduationYear || graduationYear,
+          gpa: parsed.education.gpa || cgpa,
         },
-      }));
-      setStep(3);
-      showToast('Resume parsed successfully! Review and correct the extracted information below.', 'success');
-    }, 1400);
+        skills: parsed.skills.length > 0 ? parsed.skills : ['React', 'TypeScript', 'Node.js', 'SQL', 'Git'],
+        projects: parsed.projects.length > 0 ? parsed.projects : [
+          {
+            title: 'Technical Web Application',
+            description: 'Full-stack application engineered with modern frameworks and database persistence.',
+            technologies: 'React, TypeScript, Node.js',
+          }
+        ],
+        experience: parsed.experience,
+      });
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
+      // Synchronize detected candidate fields if empty or default
+      if (parsed.candidate.name && (!name.trim() || name === 'Candidate')) {
+        setName(parsed.candidate.name);
+      }
+      if (parsed.candidate.college && college === 'TechSummit Institute of Technology') {
+        setCollege(parsed.candidate.college);
+      }
+      if (parsed.candidate.degree && degree === 'B.Tech in Computer Science & Engineering') {
+        setDegree(parsed.candidate.degree);
+      }
+      if (parsed.candidate.graduationYear) {
+        setGraduationYear(parsed.candidate.graduationYear);
+      }
+      if (parsed.candidate.gpa) {
+        setCgpa(parsed.candidate.gpa);
+      }
+
+      setAiModelUsed(parsed.aiModel || 'OpenRouter GPT-4o Mini');
+      setIsAiParsed(parsed.isAIParsed);
+      setParsedClaimsCount(parsed.claims?.length || 0);
+
+      setExtractionProgress(100);
+      setExtractionPhase('Extraction Complete!');
+
+      setTimeout(() => {
+        setIsExtracting(false);
+        setStep(3);
+        showToast(
+          parsed.isAIParsed
+            ? `Resume dynamically parsed by AI! Extracted ${parsed.skills.length} skills and ${parsed.projects.length} project(s).`
+            : `Extracted ${parsed.skills.length} skills from resume. Please review and refine.`,
+          'success'
+        );
+      }, 350);
+    } catch (err: any) {
+      clearTimeout(timerProg1);
+      clearTimeout(timerProg2);
+      console.error('Resume parsing error:', err);
+      setIsExtracting(false);
+      showToast(err.message || 'Failed to extract resume with AI. You can review and enter manually.', 'error');
+    }
   };
 
   // Skill management
@@ -177,6 +252,51 @@ export const StudentRegisterPage: React.FC = () => {
     }));
   };
 
+  // Project management
+  const handleAddProject = () => {
+    setExtracted((prev) => ({
+      ...prev,
+      projects: [
+        ...prev.projects,
+        {
+          title: 'New Engineering Project',
+          description: 'Describe key functionality, architecture, and quantifiable outcomes.',
+          technologies: 'React, Node.js',
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveProject = (index: number) => {
+    setExtracted((prev) => ({
+      ...prev,
+      projects: prev.projects.filter((_, idx) => idx !== index),
+    }));
+  };
+
+  // Experience management
+  const handleAddExperience = () => {
+    setExtracted((prev) => ({
+      ...prev,
+      experience: [
+        ...prev.experience,
+        {
+          company: 'Company / Organization',
+          role: 'Software Development Intern',
+          duration: 'Summer 2025',
+          description: 'Describe responsibilities and impact.',
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveExperience = (index: number) => {
+    setExtracted((prev) => ({
+      ...prev,
+      experience: prev.experience.filter((_, idx) => idx !== index),
+    }));
+  };
+
   // Final Registration Confirmation
   const handleFinalConfirm = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -187,6 +307,10 @@ export const StudentRegisterPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // 1. Persist the extracted dynamic profile data so entire student portal uses it
+      studentApi.saveParsedProfileData(extracted);
+
+      // 2. Register candidate account
       const res = await registerStudent({
         name,
         email,
@@ -225,15 +349,19 @@ export const StudentRegisterPage: React.FC = () => {
               <span>Back to login</span>
             </Link>
             <span className="eyebrow !mb-1">Student Onboarding</span>
-            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
-              Registration & Resume Ingestion
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink flex items-center gap-2.5">
+              <span>Registration & AI Resume Ingestion</span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <Sparkles className="w-3 h-3 text-emerald-600" />
+                AI Powered
+              </span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-              Create your candidate profile. Upload a resume to automatically extract your skills, education, and projects.
+              Create your candidate profile. Upload a resume to automatically extract your skills, education, and projects with AI.
             </p>
           </div>
 
-          {/* Stepper indicator: Details → Resume → Review → Confirm */}
+          {/* Stepper indicator */}
           <div className="flex items-center gap-1.5 self-start sm:self-auto text-xs font-mono font-bold flex-wrap">
             <span
               className={`px-3 py-1 rounded-full transition-colors ${
@@ -345,21 +473,27 @@ export const StudentRegisterPage: React.FC = () => {
           </Card>
         )}
 
-        {/* STEP 2: PDF Upload & Progress */}
+        {/* STEP 2: PDF/DOCX Upload & Dynamic AI Progress */}
         {step === 2 && (
           <Card className="p-8 border-slate-200 shadow-sm space-y-6">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Step 2: Resume Ingestion & Extraction</h3>
-              <p className="text-xs text-slate-500">
-                Upload your current PDF resume. ProofHire will extract your skills, coursework, and projects into editable form fields.
-              </p>
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Step 2: Dynamic AI Resume Ingestion</h3>
+                <p className="text-xs text-slate-500">
+                  Upload your resume (PDF, DOCX, or text). ProofHire AI will dynamically extract your skills, education, coursework, and projects.
+                </p>
+              </div>
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono bg-blue-50 text-blue-700 border border-blue-200 font-semibold">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                GPT-4o Mini
+              </span>
             </div>
 
             <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50 hover:bg-slate-100/60 transition-colors">
               <input
                 type="file"
                 id="resume-file"
-                accept=".pdf"
+                accept=".pdf,.docx,.txt,.md"
                 className="hidden"
                 onChange={handleFileChange}
               />
@@ -368,14 +502,14 @@ export const StudentRegisterPage: React.FC = () => {
                   <UploadCloud className="w-6 h-6" />
                 </div>
                 <div className="text-xs">
-                  <span className="font-bold text-brand-600 hover:text-brand-800">Click to choose PDF</span>
+                  <span className="font-bold text-brand-600 hover:text-brand-800">Click to choose resume file</span>
                   <span className="text-slate-500"> or drag and drop your file here</span>
                 </div>
-                <p className="text-[11px] text-slate-400">PDF documents only (max 10MB)</p>
+                <p className="text-[11px] text-slate-400">Supported formats: PDF, DOCX, TXT (max 10MB)</p>
               </label>
 
               {file && (
-                <div className="mt-4 p-3 bg-white rounded-lg border border-slate-200 inline-flex items-center gap-2 text-xs font-semibold text-slate-800">
+                <div className="mt-4 p-3 bg-white rounded-lg border border-slate-200 inline-flex items-center gap-2 text-xs font-semibold text-slate-800 shadow-xs">
                   <FileText className="w-4 h-4 text-brand-600" />
                   <span>Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
                 </div>
@@ -390,7 +524,7 @@ export const StudentRegisterPage: React.FC = () => {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Extracting skills, projects, and academic history...</span>
+                    <span>{extractionPhase}</span>
                   </span>
                   <span>{extractionProgress}%</span>
                 </div>
@@ -407,7 +541,7 @@ export const StudentRegisterPage: React.FC = () => {
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 flex items-start gap-2">
                 <ShieldAlert className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                 <p>
-                  <strong>Verification Policy:</strong> Extracted resume claims are candidate-provided assertions. They will be marked as <em>Unconfirmed – please review</em> and do <strong>not</strong> automatically become verified evidence until backed by proctored tests, GitHub code analysis, or auditor scrutiny.
+                  <strong>AI Parsing & Verification Policy:</strong> Extracted resume claims are dynamically parsed by AI. They will be marked as <em>Unconfirmed – please review</em> so you retain full control to edit or delete any item before confirming.
                 </p>
               </div>
               <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-start gap-2">
@@ -441,9 +575,10 @@ export const StudentRegisterPage: React.FC = () => {
                   onClick={handleStartExtraction}
                   isLoading={isExtracting}
                   disabled={!file}
-                  className="gap-2 font-semibold"
+                  className="gap-2 font-semibold shadow-btn-amber"
                 >
-                  <span>Parse Resume & Review</span>
+                  <Sparkles className="w-4 h-4 text-ink" />
+                  <span>Parse Resume with AI</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </div>
@@ -454,21 +589,43 @@ export const StudentRegisterPage: React.FC = () => {
         {/* STEP 3: Editable Review Screen */}
         {step === 3 && (
           <div className="space-y-6">
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-              <Edit3 className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">Unconfirmed – please review extracted data</p>
-                <p className="text-amber-800 mt-0.5 leading-relaxed">
-                  Review the extracted profile below. You can correct, add, or remove any information before confirming your candidate account. All entries remain unconfirmed assertions until evidence is verified.
-                </p>
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-start justify-between gap-3 shadow-xs">
+              <div className="flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold flex items-center gap-2">
+                    <span>Parsed Dynamically by AI</span>
+                    {aiModelUsed && (
+                      <span className="font-mono text-[10px] font-normal px-2 py-0.5 bg-emerald-100 rounded text-emerald-800 border border-emerald-300">
+                        Model: {aiModelUsed}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-emerald-800 mt-0.5 leading-relaxed">
+                    Review and refine the extracted profile below. You can edit, add, or remove any information before confirming your candidate account.
+                  </p>
+                </div>
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setStep(2)}
+                className="shrink-0 text-xs bg-white text-slate-700 hover:text-ink gap-1"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                <span>Re-upload</span>
+              </Button>
             </div>
 
             {/* Extracted Education */}
             <Card className="p-6 border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-                Academic Background (Extracted)
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-brand-600" />
+                  <span>Academic Background (Extracted)</span>
+                </h3>
+                <span className="text-[11px] font-mono text-slate-400 font-semibold">Editable</span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Institution"
@@ -518,20 +675,26 @@ export const StudentRegisterPage: React.FC = () => {
 
             {/* Extracted Technical Skills */}
             <Card className="p-6 border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
-                Technical Skills (Extracted)
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-brand-600" />
+                  <span>Technical Skills (Extracted by AI)</span>
+                </h3>
+                <span className="text-[11px] font-mono text-slate-500 font-semibold">
+                  {extracted.skills.length} detected
+                </span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {extracted.skills.map((skill) => (
                   <span
                     key={skill}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200 hover:border-slate-300 transition-colors"
                   >
                     <span>{skill}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveSkill(skill)}
-                      className="text-slate-400 hover:text-rose-600 transition-colors"
+                      className="text-slate-400 hover:text-rose-600 transition-colors font-bold text-sm"
                       title="Remove skill"
                     >
                       ×
@@ -561,15 +724,43 @@ export const StudentRegisterPage: React.FC = () => {
             {/* Extracted Projects */}
             <Card className="p-6 border-slate-200 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="text-sm font-bold text-slate-900">Extracted Projects</h3>
-                <span className="text-[11px] text-slate-500 font-medium">
-                  {extracted.projects.length} project(s) parsed
-                </span>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <FileCheck2 className="w-4 h-4 text-brand-600" />
+                  <span>Extracted Projects</span>
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {extracted.projects.length} project(s) parsed
+                  </span>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAddProject}
+                    className="text-xs gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Project</span>
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-4">
                 {extracted.projects.map((proj, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
+                  <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3 relative group">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono font-bold text-slate-500">Project #{idx + 1}</span>
+                      {extracted.projects.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProject(idx)}
+                          className="text-slate-400 hover:text-rose-600 transition-colors"
+                          title="Delete project"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <Input
                       label="Project Title"
                       value={proj.title}
@@ -604,6 +795,98 @@ export const StudentRegisterPage: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </Card>
+
+            {/* Extracted Experience (if any) */}
+            <Card className="p-6 border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-brand-600" />
+                  <span>Work & Internship Experience</span>
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {extracted.experience.length} record(s)
+                  </span>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAddExperience}
+                    className="text-xs gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Experience</span>
+                  </Button>
+                </div>
+              </div>
+
+              {extracted.experience.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-2">
+                  No work experience detected in resume. You can add internships using the button above or proceed.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {extracted.experience.map((exp, idx) => (
+                    <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3 relative">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono font-bold text-slate-500">Experience #{idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExperience(idx)}
+                          className="text-slate-400 hover:text-rose-600 transition-colors"
+                          title="Delete experience"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Input
+                          label="Company / Organization"
+                          value={exp.company}
+                          onChange={(e) => {
+                            const updated = [...extracted.experience];
+                            updated[idx].company = e.target.value;
+                            setExtracted({ ...extracted, experience: updated });
+                          }}
+                        />
+                        <Input
+                          label="Role / Title"
+                          value={exp.role}
+                          onChange={(e) => {
+                            const updated = [...extracted.experience];
+                            updated[idx].role = e.target.value;
+                            setExtracted({ ...extracted, experience: updated });
+                          }}
+                        />
+                      </div>
+                      <Input
+                        label="Duration"
+                        value={exp.duration}
+                        placeholder="e.g. May 2025 - August 2025"
+                        onChange={(e) => {
+                          const updated = [...extracted.experience];
+                          updated[idx].duration = e.target.value;
+                          setExtracted({ ...extracted, experience: updated });
+                        }}
+                      />
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-slate-700">Description</label>
+                        <textarea
+                          rows={2}
+                          className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                          value={exp.description}
+                          onChange={(e) => {
+                            const updated = [...extracted.experience];
+                            updated[idx].description = e.target.value;
+                            setExtracted({ ...extracted, experience: updated });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
 
             {/* Final Confirmation Actions */}

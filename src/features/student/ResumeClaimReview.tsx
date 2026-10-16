@@ -32,8 +32,9 @@ export const ResumeClaimReview: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
-      if (!selected.name.endsWith('.pdf') && !selected.name.endsWith('.docx')) {
-        showToast('Please upload a PDF or DOCX resume document', 'error');
+      const valid = ['.pdf', '.docx', '.txt', '.md'].some(ext => selected.name.toLowerCase().endsWith(ext));
+      if (!valid) {
+        showToast('Please upload a PDF, DOCX, or text resume document', 'error');
         return;
       }
       setFile(selected);
@@ -74,12 +75,17 @@ export const ResumeClaimReview: React.FC = () => {
       {/* Upload Box */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <UploadCloud className="w-5 h-5 text-brand-600" />
-            <CardTitle>Upload Document for Verification</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UploadCloud className="w-5 h-5 text-brand-600" />
+              <CardTitle>Upload Document for Verification</CardTitle>
+            </div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              AI Auditor
+            </span>
           </div>
           <CardDescription>
-            Supports PDF and DOCX files up to 10MB. Text is parsed securely by the server analysis engine.
+            Supports PDF, DOCX, and TXT files up to 10MB. The AI analysis engine parses claims dynamically and compares them to your verified evidence ledger.
           </CardDescription>
         </CardHeader>
 
@@ -88,7 +94,7 @@ export const ResumeClaimReview: React.FC = () => {
             <input
               type="file"
               id="resume-upload"
-              accept=".pdf,.docx"
+              accept=".pdf,.docx,.txt,.md"
               className="hidden"
               onChange={handleFileChange}
             />
@@ -103,7 +109,7 @@ export const ResumeClaimReview: React.FC = () => {
                 <span className="font-bold text-brand-600 hover:text-brand-700">Click to browse</span>
                 <span className="text-slate-500"> or drag and drop your resume file</span>
               </div>
-              <p className="text-[11px] text-slate-400">PDF, DOCX up to 10MB</p>
+              <p className="text-[11px] text-slate-400">PDF, DOCX, TXT up to 10MB</p>
             </label>
 
             {file && (
