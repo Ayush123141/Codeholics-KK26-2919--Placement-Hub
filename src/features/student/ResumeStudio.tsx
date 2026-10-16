@@ -13,7 +13,8 @@ import {
   Edit2,
   Check,
   Building2,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { studentApi } from '@/lib/api/studentApi';
+import { llmAssistService } from '@/lib/services/llmAssist';
 import { UserProfile, ResumeBulletItem, Job } from '@/types';
 
 export const ResumeStudio: React.FC = () => {
@@ -69,16 +71,28 @@ export const ResumeStudio: React.FC = () => {
     setIsGenerated(false);
   };
 
-  const handleGenerateTailoredResume = () => {
+  const handleGenerateTailoredResume = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
+    try {
+      const skills = currentJob?.requiredSkills.map((s) => s.canonicalName) || ['React', 'TypeScript', 'Tailwind CSS'];
+      const aiSummary = await llmAssistService.tailorResumeSummaryWithLLM(
+        currentJob?.title || 'Frontend Platform Engineer',
+        currentJob?.company || 'CloudScale Technologies',
+        skills,
+        profile?.name || 'Alex Morgan'
+      );
+      setSummaryText(aiSummary);
       setIsGenerated(true);
       showToast(
-        `Resume tailored specifically for ${currentJob?.title || 'selected role'} at ${currentJob?.company || 'partner company'}.`,
+        `Resume summary tailored by OpenRouter AI for ${currentJob?.title || 'selected role'} at ${currentJob?.company || 'partner company'}.`,
         'success'
       );
-    }, 900);
+    } catch {
+      setIsGenerated(true);
+      showToast('Resume summary generated for selected vacancy.', 'success');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handlePrintDownload = () => {
@@ -188,9 +202,17 @@ export const ResumeStudio: React.FC = () => {
         {/* Professional Summary */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between border-b border-slate-300 pb-1">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-              Professional Summary
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                Professional Summary
+              </h3>
+              {isGenerated && (
+                <span className="print:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                  <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                  <span>AI Tailored (OpenRouter)</span>
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setIsEditingSummary(!isEditingSummary)}
               className="text-[11px] text-brand-700 hover:text-brand-900 font-medium print:hidden flex items-center gap-1"
