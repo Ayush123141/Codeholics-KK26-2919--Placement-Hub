@@ -44,10 +44,10 @@ export const StudentDashboard: React.FC = () => {
           studentApi.getEvidence(),
         ]);
         setProfile(prof);
-        setSkills(sk);
-        setJobs(jb);
-        setApplications(apps);
-        setEvidenceList(ev);
+        setSkills(Array.isArray(sk) ? sk : []);
+        setJobs(Array.isArray(jb) ? jb : []);
+        setApplications(Array.isArray(apps) ? apps : []);
+        setEvidenceList(Array.isArray(ev) ? ev : []);
       } catch (err) {
         console.error('Failed to load student dashboard:', err);
       } finally {
