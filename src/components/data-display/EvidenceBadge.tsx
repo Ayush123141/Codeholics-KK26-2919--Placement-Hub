@@ -19,29 +19,29 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
   switch (status) {
     case 'VERIFIED':
       return (
-        <Badge variant="success" size={size} className={className}>
-          {showIcon && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+        <Badge variant="fresh" size={size} className={className}>
+          {showIcon && <CheckCircle2 className="w-3.5 h-3.5 text-fresh" />}
           <span>Verified</span>
         </Badge>
       );
     case 'REVIEWED':
       return (
-        <Badge variant="info" size={size} className={className}>
-          {showIcon && <Clock className="w-3 h-3 text-blue-600" />}
+        <Badge variant="default" size={size} className={className}>
+          {showIcon && <Clock className="w-3.5 h-3.5 text-slate-600" />}
           <span>Reviewed</span>
         </Badge>
       );
     case 'NEEDS_REVIEW':
       return (
         <Badge variant="warning" size={size} className={className}>
-          {showIcon && <AlertCircle className="w-3 h-3 text-amber-600" />}
+          {showIcon && <AlertCircle className="w-3.5 h-3.5 text-brand-600" />}
           <span>Needs Review</span>
         </Badge>
       );
     case 'UNVERIFIED':
       return (
-        <Badge variant="slate" size={size} className={className}>
-          {showIcon && <HelpCircle className="w-3 h-3 text-slate-400" />}
+        <Badge variant="amber" size={size} className={className}>
+          {showIcon && <HelpCircle className="w-3.5 h-3.5 text-slate-400" />}
           <span>Unverified</span>
         </Badge>
       );
@@ -49,7 +49,7 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
     default:
       return (
         <Badge variant="default" size={size} className={className}>
-          {showIcon && <ShieldAlert className="w-3 h-3 text-slate-400" />}
+          {showIcon && <ShieldAlert className="w-3.5 h-3.5 text-slate-400" />}
           <span>No Evidence Recorded</span>
         </Badge>
       );

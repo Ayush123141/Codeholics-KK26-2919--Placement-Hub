@@ -49,40 +49,40 @@ export const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-ink/50 backdrop-blur-xs transition-opacity duration-200"
         onClick={onClose}
       />
 
-      {/* Modal Dialog */}
+      {/* Modal Dialog with glass surface */}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'dialog-title' : undefined}
         aria-describedby={description ? 'dialog-description' : undefined}
         className={cn(
-          'relative w-full bg-white rounded-xl shadow-xl border border-slate-200 z-10 overflow-hidden transform transition-all my-8 max-h-[90vh] flex flex-col',
+          'relative w-full bg-white/95 backdrop-blur-md rounded-[14px] shadow-glass border border-white/60 z-10 overflow-hidden transform transition-all my-8 max-h-[90vh] flex flex-col',
           sizeClasses[size],
           className
         )}
       >
         {/* Header */}
         {(title || description) && (
-          <div className="flex items-start justify-between p-5 border-b border-slate-100 bg-white">
+          <div className="flex items-start justify-between p-5 border-b border-line bg-white/80">
             <div>
               {title && (
-                <h3 id="dialog-title" className="text-base font-bold text-slate-900">
+                <h3 id="dialog-title" className="font-display text-base font-bold text-ink">
                   {title}
                 </h3>
               )}
               {description && (
-                <p id="dialog-description" className="text-xs text-slate-500 mt-0.5">
+                <p id="dialog-description" className="text-xs text-slate-500 mt-0.5 leading-relaxed">
                   {description}
                 </p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none"
+              className="text-slate-400 hover:text-ink p-1.5 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none"
               aria-label="Close dialog"
             >
               <X className="w-5 h-5" />
@@ -98,4 +98,3 @@ export const Modal: React.FC<ModalProps> = ({
 };
 
 export { Modal as Dialog };
-

@@ -9,21 +9,27 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, disabled, children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98] min-h-[36px] sm:min-h-0';
+    const baseStyles = 'inline-flex items-center justify-center font-mono font-bold rounded-[10px] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98] min-h-[36px] sm:min-h-0';
 
     const variants = {
-      primary: 'bg-brand-600 text-white hover:bg-brand-700 focus-visible:ring-brand-600 shadow-xs',
-      secondary: 'bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-900 shadow-xs',
-      outline: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 focus-visible:ring-slate-400 shadow-xs',
-      ghost: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus-visible:ring-slate-400',
-      danger: 'bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-600 shadow-xs',
-      success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-600 shadow-xs',
+      // Primary button: Reference .btn-amber
+      primary: 'bg-brand-500 text-ink hover:bg-brand-600 hover:-translate-y-0.5 hover:shadow-btn-amber focus-visible:ring-brand-500 border border-brand-600/20',
+      // Secondary button: Reference dark button
+      secondary: 'bg-ink text-white hover:bg-ink-2 hover:-translate-y-0.5 focus-visible:ring-ink shadow-xs border border-ink-3',
+      // Outline button: Reference .btn-outline
+      outline: 'border-[1.5px] border-slate-300 bg-transparent text-ink hover:bg-ink hover:text-white hover:border-ink hover:-translate-y-0.5 focus-visible:ring-slate-400',
+      // Ghost button
+      ghost: 'text-slate-600 hover:text-ink hover:bg-slate-100/80 focus-visible:ring-slate-400',
+      // Danger button
+      danger: 'bg-rose-600 text-white hover:bg-rose-700 hover:-translate-y-0.5 focus-visible:ring-rose-600 shadow-xs',
+      // Success button: Reference .fresh
+      success: 'bg-fresh text-ink hover:bg-emerald-400 hover:-translate-y-0.5 focus-visible:ring-fresh shadow-xs',
     };
 
     const sizes = {
       sm: 'text-xs px-3 py-1.5 gap-1.5',
-      md: 'text-sm px-4 py-2 gap-2 min-h-[40px]',
-      lg: 'text-base px-5 py-2.5 gap-2.5 min-h-[44px]',
+      md: 'text-xs sm:text-[13px] px-4 py-2 gap-2 min-h-[40px]',
+      lg: 'text-sm px-6 py-3 gap-2.5 min-h-[46px]',
     };
 
     return (

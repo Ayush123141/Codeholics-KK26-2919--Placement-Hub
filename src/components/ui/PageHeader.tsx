@@ -9,6 +9,7 @@ export interface BreadcrumbItem {
 }
 
 export interface PageHeaderProps {
+  eyebrow?: string;
   title: string;
   description?: string;
   breadcrumbs?: BreadcrumbItem[];
@@ -18,6 +19,7 @@ export interface PageHeaderProps {
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
+  eyebrow,
   title,
   description,
   breadcrumbs,
@@ -29,14 +31,14 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <div className={cn('mb-6 space-y-2', className)}>
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-500 mb-1">
+        <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-slate-500 mb-1 font-mono">
           {breadcrumbs.map((crumb, idx) => {
             const isLast = idx === breadcrumbs.length - 1;
             return (
               <React.Fragment key={idx}>
                 {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                 {isLast || !crumb.href ? (
-                  <span className={cn('font-medium', isLast ? 'text-slate-900' : 'text-slate-500')}>
+                  <span className={cn('font-medium', isLast ? 'text-ink font-semibold' : 'text-slate-500')}>
                     {crumb.label}
                   </span>
                 ) : (
@@ -54,10 +56,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
 
       {/* Main Title Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="space-y-1">
+          {eyebrow && <span className="eyebrow !mb-1">{eyebrow}</span>}
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-ink">
               {title}
             </h1>
             {badge && <div>{badge}</div>}

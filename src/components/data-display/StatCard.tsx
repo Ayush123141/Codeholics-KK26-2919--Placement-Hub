@@ -25,26 +25,26 @@ export const StatCard: React.FC<StatCardProps> = ({
   className,
 }) => {
   const iconColors = {
-    brand: 'bg-brand-50 text-brand-600 border-brand-100',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100',
-    violet: 'bg-purple-50 text-purple-600 border-purple-100',
-    slate: 'bg-slate-100 text-slate-700 border-slate-200',
+    brand: 'bg-brand-50 text-brand-700 border-brand-200',
+    emerald: 'bg-fresh/10 text-emerald-800 border-emerald-300',
+    amber: 'bg-brand-50 text-brand-700 border-brand-200',
+    violet: 'bg-purple-50 text-purple-700 border-purple-200',
+    slate: 'bg-paper-alt text-slate-700 border-line',
   };
 
   return (
-    <Card className={cn('p-4 hover:border-slate-300 transition-all shadow-xs', className)}>
+    <Card className={cn('p-5 border-line hover:border-slate-300 transition-all shadow-card bg-white', className)}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{title}</p>
-          <h4 className="text-2xl font-extrabold text-slate-900 mt-1 tracking-tight">{value}</h4>
-          {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
+          <p className="font-mono text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{title}</p>
+          <h4 className="font-display text-2xl font-bold text-ink mt-1 tracking-tight">{value}</h4>
+          {subtitle && <p className="text-xs text-slate-500 mt-1 leading-relaxed font-sans">{subtitle}</p>}
           {trend && (
             <div className="flex items-center gap-1 mt-2">
               <span
                 className={cn(
-                  'text-[11px] font-bold',
-                  trend.isPositive ? 'text-emerald-600' : 'text-rose-600'
+                  'font-mono text-[11px] font-bold',
+                  trend.isPositive ? 'text-emerald-700' : 'text-rose-600'
                 )}
               >
                 {trend.isPositive ? '↑' : '↓'} {trend.value}
@@ -53,7 +53,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             </div>
           )}
         </div>
-        <div className={cn('p-2.5 rounded-xl border', iconColors[color])}>
+        <div className={cn('p-2.5 rounded-[10px] border shadow-xs', iconColors[color])}>
           {icon}
         </div>
       </div>
