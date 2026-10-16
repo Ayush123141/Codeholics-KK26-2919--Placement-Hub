@@ -24,13 +24,35 @@ import { MatchingResult, EvidenceRecord } from '@/types';
 
 export const StudentEvidenceOverview: React.FC = () => {
   const { showToast } = useToast();
-  const [candidates] = useState<MatchingResult[]>(DEMO_BATCH_RANKING);
+  const [candidates, setCandidates] = useState<MatchingResult[]>(DEMO_BATCH_RANKING);
   const [evidenceList, setEvidenceList] = useState<EvidenceRecord[]>(DEMO_EVIDENCE);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deptFilter, setDeptFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'SCORE_DESC' | 'SCORE_ASC' | 'CGPA_DESC' | 'NAME_ASC'>('SCORE_DESC');
   const [selectedCandidate, setSelectedCandidate] = useState<MatchingResult | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  React.useEffect(() => {
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const cohortData = await placementApi.getCohortEvidence();
+        if (cohortData.candidates && cohortData.candidates.length > 0) {
+          setCandidates(cohortData.candidates);
+        }
+        if (cohortData.evidenceList && cohortData.evidenceList.length > 0) {
+          setEvidenceList(cohortData.evidenceList);
+        }
+      } catch (err) {
+        console.warn('Failed to load live cohort evidence:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
 
   const filtered = candidates
     .filter((c) => {

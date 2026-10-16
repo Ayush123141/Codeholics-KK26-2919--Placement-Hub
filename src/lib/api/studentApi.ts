@@ -199,35 +199,64 @@ export const studentApi = {
   async getJobs(): Promise<Job[]> {
     if (isSupabaseConfigured && supabase) {
       try {
+        let appliedJobIds = new Set<string>();
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: myApps } = await supabase
+              .from('applications')
+              .select('job_id')
+              .eq('student_id', user.id);
+            if (myApps) {
+              appliedJobIds = new Set(myApps.map((a: any) => a.job_id));
+            }
+          }
+        } catch {}
+
         const { data: dbJobs } = await supabase
           .from('jobs')
-          .select('*')
+          .select('*, campaigns(*)')
           .eq('is_active', true)
-          .limit(20);
+          .order('created_at', { ascending: false });
 
         if (dbJobs && dbJobs.length > 0) {
-          return dbJobs.map((item: any) => ({
-            id: item.id,
-            title: item.title,
-            company: item.company_name,
-            location: item.location || 'Remote',
-            type: (item.workplace_type || 'Full-time') as Job['type'],
-            salaryRange: item.salary_range || 'Competitive',
-            description: item.description || '',
-            requiredSkills: [],
-            preferredSkills: [],
-            eligibilityCriteria: {
-              minimumCgpa: 6.5,
-              allowedDepartments: ['Computer Science', 'Information Technology'],
-              graduationYear: [2025, 2026],
-            },
-            deadline: '2026-06-30',
-            postedDate: item.created_at ? item.created_at.split('T')[0] : '2026-01-15',
-            status: 'ACTIVE',
-            sourceCount: 1,
-            matchedScore: 88,
-            hasApplied: false,
-          }));
+          const fromDb: Job[] = dbJobs.map((item: any) => {
+            const hasApplied = appliedJobIds.has(item.id);
+            return {
+              id: item.id,
+              title: item.title,
+              company: item.company_name,
+              location: item.location || 'Bengaluru (Hybrid)',
+              type: (item.workplace_type || 'Full-time') as Job['type'],
+              salaryRange: item.salary_range || '₹8,00,000 - ₹14,00,000',
+              description: item.description || '',
+              requiredSkills: [
+                { skillId: 'skill-react', canonicalName: 'React', sourceText: 'React', weight: 40 },
+                { skillId: 'skill-ts', canonicalName: 'TypeScript', sourceText: 'TypeScript', weight: 30 },
+                { skillId: 'skill-node', canonicalName: 'Node.js', sourceText: 'Node.js', weight: 30 },
+              ],
+              preferredSkills: [
+                { skillId: 'skill-pg', canonicalName: 'PostgreSQL', sourceText: 'PostgreSQL', weight: 20 },
+                { skillId: 'skill-docker', canonicalName: 'Docker', sourceText: 'Docker', weight: 10 },
+              ],
+              eligibilityCriteria: {
+                minimumCgpa: 6.5,
+                allowedDepartments: ['Computer Science', 'Information Technology'],
+                graduationYear: [2025, 2026],
+              },
+              deadline: '2026-11-30',
+              postedDate: item.created_at ? item.created_at.split('T')[0] : '2026-01-15',
+              status: 'ACTIVE',
+              sourceCount: 1,
+              matchedScore: hasApplied ? 92 : 88,
+              hasApplied,
+            };
+          });
+
+          // Merge with DEMO_JOBS (omit duplicates)
+          const dbJobTitles = new Set(fromDb.map(j => j.title.toLowerCase()));
+          const nonDupDemos = DEMO_JOBS.filter(d => !dbJobTitles.has(d.title.toLowerCase()));
+          return [...fromDb, ...nonDupDemos];
         }
       } catch (e) {
         console.warn('Supabase getJobs fallback notice:', e);
@@ -243,18 +272,50 @@ export const studentApi = {
   },
 
   async applyToJob(jobId: string): Promise<Application> {
-    const job = localJobs.find((j) => j.id === jobId) || { id: jobId, title: 'Job Application', company: 'Partner Company' };
+    const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    const jobs = await this.getJobs();
+    const job = jobs.find((j) => j.id === jobId) || localJobs.find((j) => j.id === jobId) || { id: jobId, title: 'Engineering Application', company: 'Partner Company' };
     (job as any).hasApplied = true;
 
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+        if (user && isUuid(jobId)) {
+          // Check for linked campaign
+          let campaignId: string | null = null;
+          try {
+            const { data: camp } = await supabase
+              .from('campaigns')
+              .select('id')
+              .eq('job_id', jobId)
+              .maybeSingle();
+            if (camp?.id) campaignId = camp.id;
+          } catch {}
+
           await supabase.from('applications').insert({
             job_id: jobId,
             student_id: user.id,
-            stage: 'APPLIED',
+            campaign_id: campaignId,
+            current_stage: 'APPLIED',
           });
+
+          // Also insert into application_events
+          try {
+            const { data: newApp } = await supabase
+              .from('applications')
+              .select('id')
+              .eq('job_id', jobId)
+              .eq('student_id', user.id)
+              .maybeSingle();
+
+            if (newApp?.id) {
+              await supabase.from('application_events').insert({
+                application_id: newApp.id,
+                to_stage: 'APPLIED',
+                notes: 'Application submitted with verified evidence ledger.',
+              });
+            }
+          } catch {}
         }
       } catch (e) {
         console.warn('Supabase applyToJob notice:', e);
@@ -270,7 +331,7 @@ export const studentApi = {
       studentName: localStudentProfile.name,
       appliedAt: new Date().toLocaleDateString(),
       currentStage: 'APPLIED',
-      fitScore: 85,
+      fitScore: 88,
       events: [
         {
           id: `ev-app-${Date.now()}`,
