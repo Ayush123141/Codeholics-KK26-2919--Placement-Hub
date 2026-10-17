@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   UploadCloud, 
   FileCheck, 
@@ -7,6 +7,7 @@ import {
   BookOpen, 
   Award,
   ShieldCheck,
+  Sparkles,
   X
 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
@@ -16,6 +17,7 @@ import { Select } from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { EvidenceType, EvidenceRecord } from '@/types';
 import { studentApi } from '@/lib/api/studentApi';
+import { CANONICAL_SKILLS } from '@/lib/services/skillCatalogue';
 
 export interface AddEvidenceModalProps {
   isOpen: boolean;
@@ -40,6 +42,34 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
   const [certificateFile, setCertificateFile] = useState<{ name: string; size: number; type: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Dynamic skills state extracted from parsed resume
+  const [resumeSkills, setResumeSkills] = useState<string[]>([]);
+  const [canonicalSkills, setCanonicalSkills] = useState<string[]>([]);
+  const [isCustomSkill, setIsCustomSkill] = useState(false);
+  const [customSkillName, setCustomSkillName] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // 1. Fetch dynamic skills parsed from the candidate's resume
+    const fromResume = studentApi.getResumeSkills();
+    const cleanResumeSkills = Array.from(new Set(fromResume.map((s) => s.trim()).filter(Boolean)));
+    setResumeSkills(cleanResumeSkills);
+
+    // 2. Fetch baseline canonical catalogue skills so data is always rich and displayed
+    const canonical = CANONICAL_SKILLS.map((s) => s.name);
+    setCanonicalSkills(canonical);
+
+    // 3. Automatically prioritize and default to first parsed resume skill if available
+    if (cleanResumeSkills.length > 0) {
+      setSkillName(cleanResumeSkills[0]);
+    } else if (canonical.length > 0) {
+      setSkillName(canonical[0]);
+    }
+    setIsCustomSkill(false);
+    setCustomSkillName('');
+  }, [isOpen]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -61,8 +91,25 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleSkillChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val === '__CUSTOM__') {
+      setIsCustomSkill(true);
+      setSkillName('');
+    } else {
+      setIsCustomSkill(false);
+      setSkillName(val);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const finalSkill = isCustomSkill ? customSkillName.trim() : skillName.trim();
+    if (!finalSkill) {
+      showToast('Please select or enter a valid canonical skill', 'error');
+      return;
+    }
+
     if (!title.trim() || !details.trim()) {
       showToast('Please fill in title and evaluation scope details', 'error');
       return;
@@ -77,8 +124,8 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
     try {
       const created = await studentApi.addEvidence({
         studentId: 'student-demo-001',
-        skillId: `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-        skillName,
+        skillId: `skill-${finalSkill.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        skillName: finalSkill,
         type,
         title,
         sourceUrl: sourceUrl || undefined,
@@ -99,6 +146,8 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
       setDetails('');
       setIssuer('');
       setCertificateFile(null);
+      setIsCustomSkill(false);
+      setCustomSkillName('');
     } catch {
       showToast('Failed to submit evidence', 'error');
     } finally {
@@ -115,21 +164,84 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Dynamic Skill Source Indicator Banner */}
+        {resumeSkills.length > 0 ? (
+          <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200/80 rounded-lg px-3 py-1.5 font-sans">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>
+              <strong>{resumeSkills.length} skills dynamically extracted</strong> from your uploaded resume.
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-sans">
+            <Sparkles className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>
+              Showing canonical skills catalogue. Upload your resume in Profile to auto-extract your skills.
+            </span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
-          <Select
-            label="Canonical Skill"
-            value={skillName}
-            onChange={(e) => setSkillName(e.target.value)}
-          >
-            <option value="React">React</option>
-            <option value="TypeScript">TypeScript</option>
-            <option value="Node.js">Node.js</option>
-            <option value="PostgreSQL">PostgreSQL</option>
-            <option value="Tailwind CSS">Tailwind CSS</option>
-            <option value="Docker">Docker</option>
-            <option value="Python">Python</option>
-            <option value="REST API">REST API</option>
-          </Select>
+          <div>
+            <Select
+              label="Canonical Skill"
+              value={isCustomSkill ? '__CUSTOM__' : skillName}
+              onChange={handleSkillChange}
+            >
+              {resumeSkills.length > 0 ? (
+                <>
+                  <optgroup label="✨ Skills from Uploaded Resume">
+                    {resumeSkills.map((s) => (
+                      <option key={`resume-${s}`} value={s}>
+                        {s} (From Resume)
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🌐 Platform Canonical Skills">
+                    {canonicalSkills
+                      .filter((cs) => !resumeSkills.some((rs) => rs.toLowerCase() === cs.toLowerCase()))
+                      .map((s) => (
+                        <option key={`canonical-${s}`} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                  </optgroup>
+                </>
+              ) : (
+                <optgroup label="🌐 Platform Canonical Skills">
+                  {canonicalSkills.map((s) => (
+                    <option key={`canonical-${s}`} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <option value="__CUSTOM__">➕ Enter custom skill...</option>
+            </Select>
+
+            {isCustomSkill && (
+              <div className="mt-2 space-y-1">
+                <Input
+                  label="Enter Custom Skill"
+                  placeholder="e.g. PyTorch, Rust, Solidity..."
+                  value={customSkillName}
+                  onChange={(e) => setCustomSkillName(e.target.value)}
+                  autoFocus
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomSkill(false);
+                    setSkillName(resumeSkills[0] || canonicalSkills[0] || 'React');
+                  }}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium hover:underline inline-flex items-center gap-1"
+                >
+                  ← Return to suggested skills list
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Three standardized evidence types (Skill Assessment is handled via proctored section) */}
           <Select

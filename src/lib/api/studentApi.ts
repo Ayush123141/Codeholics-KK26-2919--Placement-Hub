@@ -126,9 +126,20 @@ export const studentApi = {
   },
 
   async getSkills(): Promise<StudentSkill[]> {
+    // 1. Prioritize parsed/stored student skills from uploaded resume
+    try {
+      const stored = localStorage.getItem('proofhire_student_skills');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data: dbSkills } = await supabase.from('skills').select('*').limit(20);
+        const { data: dbSkills } = await supabase.from('skills').select('*').limit(30);
         if (dbSkills && dbSkills.length > 0) {
           return dbSkills.map((s, idx) => ({
             id: s.id,
@@ -143,6 +154,29 @@ export const studentApi = {
       } catch {}
     }
     return localSkills;
+  },
+
+  getResumeSkills(): string[] {
+    try {
+      // 1. Check direct raw resume skills array
+      const raw = localStorage.getItem('proofhire_resume_skills');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((s: any) => String(s).trim()).filter(Boolean);
+        }
+      }
+
+      // 2. Check student_skills list
+      const stored = localStorage.getItem('proofhire_student_skills');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((s: any) => (s.canonicalName || s.name || '').trim()).filter(Boolean);
+        }
+      }
+    } catch {}
+    return [];
   },
 
   async getEvidence(): Promise<EvidenceRecord[]> {
@@ -483,7 +517,11 @@ export const studentApi = {
     experience?: { company: string; role: string; duration: string; description: string }[];
   }) {
     if (data.skills && data.skills.length > 0) {
-      const newSkills: StudentSkill[] = data.skills.map((s, idx) => ({
+      const cleanSkills = Array.from(new Set(data.skills.map((s) => s.trim()).filter(Boolean)));
+      try {
+        localStorage.setItem('proofhire_resume_skills', JSON.stringify(cleanSkills));
+      } catch {}
+      const newSkills: StudentSkill[] = cleanSkills.map((s, idx) => ({
         id: `skill-${idx}-${Date.now()}`,
         canonicalName: s,
         category: 'Technical',
