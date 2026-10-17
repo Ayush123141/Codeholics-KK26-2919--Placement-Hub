@@ -850,13 +850,15 @@ export const placementApi = {
 
 
   async getApplications(): Promise<Application[]> {
-    if (isSupabaseConfigured && supabase) {
+    const client = supabaseAdmin || supabase;
+    if (isSupabaseConfigured && client) {
       try {
-        const { data: dbApps } = await supabase
+        const { data: dbApps, error } = await client
           .from('applications')
-          .select('*, jobs(*), profiles(*), application_events(*)');
+          .select('*, jobs(*), profiles(*), application_events(*)')
+          .order('created_at', { ascending: false });
 
-        if (dbApps && dbApps.length > 0) {
+        if (!error && dbApps && dbApps.length > 0) {
           const stageMapFromDb: Record<string, ApplicationStage> = {
             'ASSESSMENT': 'TECHNICAL_ASSESSMENT',
             'OFFERED': 'OFFER',
@@ -864,16 +866,21 @@ export const placementApi = {
 
           return dbApps.map((a: any) => {
             const currentStage = (stageMapFromDb[a.current_stage] || a.current_stage || 'APPLIED') as ApplicationStage;
+            const interviewDate = currentStage === 'INTERVIEW' ? 'Nov 12, 2026 • 10:30 AM IST' : undefined;
+            const interviewNotes = currentStage === 'INTERVIEW' ? 'Round 1 System Design & Technical Deep Dive via ProofHire Live Sandbox' : undefined;
+
             return {
               id: a.id,
               jobId: a.job_id,
-              jobTitle: a.jobs?.title || 'Product UI/UX Engineer',
-              companyName: a.jobs?.company_name || 'Zenith Studio Labs',
+              jobTitle: a.jobs?.title || 'Engineering Role',
+              companyName: a.jobs?.company_name || 'Hiring Partner',
               studentId: a.student_id,
-              studentName: a.profiles?.full_name || 'Alex Morgan',
+              studentName: a.profiles?.full_name || 'Student Candidate',
               appliedAt: new Date(a.created_at).toLocaleDateString(),
               currentStage,
-              fitScore: 82,
+              fitScore: 85,
+              interviewDate,
+              interviewNotes,
               events: (a.application_events || []).map((ev: any) => ({
                 id: ev.id,
                 applicationId: ev.application_id,
@@ -898,9 +905,11 @@ export const placementApi = {
   async updateApplicationStage(
     applicationId: string,
     newStage: ApplicationStage,
-    notes?: string
+    notes?: string,
+    existingContext?: Application
   ): Promise<Application> {
     const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    const client = supabaseAdmin || supabase;
     const stageMapToDb: Record<string, string> = {
       'APPLIED': 'APPLIED',
       'SHORTLISTED': 'SHORTLISTED',
@@ -912,9 +921,9 @@ export const placementApi = {
     const dbStage = stageMapToDb[newStage] || newStage;
 
     // 1. Commit directly to Supabase if configured and UUID
-    if (isSupabaseConfigured && supabase && isUuid(applicationId)) {
+    if (isSupabaseConfigured && client && isUuid(applicationId)) {
       try {
-        await supabase
+        await client
           .from('applications')
           .update({
             current_stage: dbStage,
@@ -922,42 +931,112 @@ export const placementApi = {
           })
           .eq('id', applicationId);
 
-        await supabase.from('application_events').insert({
+        await client.from('application_events').insert({
           application_id: applicationId,
           to_stage: dbStage,
-          notes: notes || `Application transitioned to ${newStage.replace('_', ' ')}`,
+          notes: notes || `Application transitioned to ${newStage.replace('_', ' ')} by Placement Officer.`,
         });
+
+        // Re-query the updated application with linked profiles and jobs
+        const { data: dbUpdated } = await client
+          .from('applications')
+          .select('*, jobs(*), profiles(*), application_events(*)')
+          .eq('id', applicationId)
+          .maybeSingle();
+
+        if (dbUpdated) {
+          const interviewDate = newStage === 'INTERVIEW' ? (existingContext?.interviewDate || 'Nov 12, 2026 • 10:30 AM IST') : undefined;
+          const interviewNotes = newStage === 'INTERVIEW' ? (notes || 'Round 1 System Design & Technical Deep Dive via ProofHire Live Sandbox') : undefined;
+
+          const mapped: Application = {
+            id: dbUpdated.id,
+            jobId: dbUpdated.job_id,
+            jobTitle: dbUpdated.jobs?.title || existingContext?.jobTitle || 'Engineering Role',
+            companyName: dbUpdated.jobs?.company_name || existingContext?.companyName || 'Hiring Partner',
+            studentId: dbUpdated.student_id,
+            studentName: dbUpdated.profiles?.full_name || existingContext?.studentName || 'Student Candidate',
+            appliedAt: new Date(dbUpdated.created_at).toLocaleDateString(),
+            currentStage: newStage,
+            fitScore: existingContext?.fitScore || 85,
+            interviewDate,
+            interviewNotes,
+            events: (dbUpdated.application_events || []).map((ev: any) => ({
+              id: ev.id,
+              applicationId: ev.application_id,
+              fromStage: ev.from_stage,
+              toStage: ev.to_stage,
+              timestamp: new Date(ev.created_at).toLocaleString(),
+              actorName: 'Dr. Ramesh Sharma',
+              actorRole: 'PLACEMENT_OFFICER',
+              notes: ev.notes,
+            })),
+          };
+
+          // Synchronize localApplications
+          const idx = localApplications.findIndex(a => a.id === applicationId);
+          if (idx >= 0) localApplications[idx] = mapped;
+          else localApplications.push(mapped);
+
+          // Update campaign counts
+          const isNowShortlisted = ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'INTERVIEW', 'OFFER'].includes(newStage);
+          const wasShortlisted = ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'INTERVIEW', 'OFFER'].includes(existingContext?.currentStage || 'APPLIED');
+          if (isNowShortlisted && !wasShortlisted) {
+            const effectiveId = mapped.jobId;
+            localCampaigns = localCampaigns.map(c => {
+              if (c.id === effectiveId || c.jobId === effectiveId) {
+                const newCount = (c.shortlistedCount || 0) + 1;
+                try {
+                  localStorage.setItem(`proofhire_campaign_shortlisted_${c.id}`, String(newCount));
+                  if (c.jobId) localStorage.setItem(`proofhire_campaign_shortlisted_${c.jobId}`, String(newCount));
+                } catch {}
+                return { ...c, shortlistedCount: newCount };
+              }
+              return c;
+            });
+          }
+
+          return mapped;
+        }
       } catch (e) {
         console.warn('Supabase application stage commit notice:', e);
       }
     }
 
-    // 2. Locate or instantiate in local application state
+    // 2. Locate or instantiate in local application state using existing context
     let app = localApplications.find(a => a.id === applicationId);
     if (!app) {
-      const demoFound = DEMO_APPLICATIONS.find(a => a.id === applicationId);
-      if (demoFound) {
-        app = { ...demoFound };
+      if (existingContext) {
+        app = { ...existingContext };
         localApplications.push(app);
       } else {
-        app = {
-          id: applicationId,
-          jobId: 'job-demo-001',
-          jobTitle: 'Product UI/UX Engineer',
-          companyName: 'Zenith Studio Labs',
-          studentId: 'student-demo-001',
-          studentName: 'Alex Morgan',
-          appliedAt: new Date().toLocaleDateString(),
-          currentStage: newStage,
-          fitScore: 82,
-          events: [],
-        };
-        localApplications.push(app);
+        const demoFound = DEMO_APPLICATIONS.find(a => a.id === applicationId);
+        if (demoFound) {
+          app = { ...demoFound };
+          localApplications.push(app);
+        } else {
+          app = {
+            id: applicationId,
+            jobId: 'job-demo-001',
+            jobTitle: 'Product Platform Engineer',
+            companyName: 'CloudScale Technologies',
+            studentId: 'student-demo-001',
+            studentName: 'Student Candidate',
+            appliedAt: new Date().toLocaleDateString(),
+            currentStage: newStage,
+            fitScore: 82,
+            events: [],
+          };
+          localApplications.push(app);
+        }
       }
     }
 
     const previousStage = app.currentStage;
     app.currentStage = newStage;
+    if (newStage === 'INTERVIEW') {
+      app.interviewDate = app.interviewDate || 'Nov 12, 2026 • 10:30 AM IST';
+      app.interviewNotes = notes || 'Round 1 System Design & Technical Deep Dive via ProofHire Live Sandbox';
+    }
     if (!app.events) app.events = [];
     app.events.push({
       id: `ev-event-${Date.now()}`,

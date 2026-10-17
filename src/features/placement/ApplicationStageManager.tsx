@@ -63,13 +63,26 @@ export const ApplicationStageManager: React.FC = () => {
       const updated = await placementApi.updateApplicationStage(
         selectedApp.id,
         targetStage,
-        notes || undefined
+        notes || undefined,
+        selectedApp
       );
 
-      setApplications((prev) =>
-        prev.map((a) => (a.id === selectedApp.id ? updated : a))
-      );
-      showToast(`Application successfully transitioned to ${targetStage.replace('_', ' ')}`, 'success');
+      try {
+        const fresh = await placementApi.getApplications();
+        if (fresh && fresh.length > 0) {
+          setApplications(fresh);
+        } else {
+          setApplications((prev) =>
+            prev.map((a) => (a.id === selectedApp.id ? updated : a))
+          );
+        }
+      } catch {
+        setApplications((prev) =>
+          prev.map((a) => (a.id === selectedApp.id ? updated : a))
+        );
+      }
+
+      showToast(`Application for ${selectedApp.studentName} transitioned to ${targetStage.replace('_', ' ')}`, 'success');
       setIsUpdateOpen(false);
     } catch {
       showToast('Failed to update application stage', 'error');
