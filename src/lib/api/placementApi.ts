@@ -367,7 +367,7 @@ export const placementApi = {
             date: new Date(e.created_at).toLocaleDateString(),
             details: e.description || e.details || '',
           }));
-          evidenceList = [...mappedEvidence, ...DEMO_EVIDENCE];
+          evidenceList = mappedEvidence;
         }
       } catch (e) {
         console.warn('Supabase getCohortEvidence notice:', e);

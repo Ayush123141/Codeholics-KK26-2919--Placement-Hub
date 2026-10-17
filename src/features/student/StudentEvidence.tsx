@@ -130,13 +130,22 @@ export const StudentEvidence: React.FC = () => {
       {/* Evidence Cards Grid */}
       {filteredEvidence.length === 0 ? (
         <EmptyState
-          title="No evidence records found"
-          description="Try adjusting your search query, status filter, or category tab."
-          actionLabel="Clear Filters"
+          icon={evidenceList.length === 0 ? <Award className="w-8 h-8 text-brand-600" /> : undefined}
+          title={evidenceList.length === 0 ? "No verifiable evidence submitted yet" : "No matching evidence records found"}
+          description={
+            evidenceList.length === 0
+              ? "Your verifiable evidence registry is completely unique to your profile. Submit your evaluated project, GitHub audit, or certification to build your verified skill score."
+              : "Try adjusting your search query, status filter, or category tab."
+          }
+          actionLabel={evidenceList.length === 0 ? "Submit Your First Evidence" : "Clear Filters"}
           onAction={() => {
-            setActiveTab('ALL');
-            setStatusFilter('ALL');
-            setSearchQuery('');
+            if (evidenceList.length === 0) {
+              setIsAddOpen(true);
+            } else {
+              setActiveTab('ALL');
+              setStatusFilter('ALL');
+              setSearchQuery('');
+            }
           }}
         />
       ) : (

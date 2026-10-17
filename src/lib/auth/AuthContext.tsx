@@ -218,6 +218,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(AUTH_STORAGE_KEY);
     sessionStorage.removeItem('proofhire_token');
     sessionStorage.removeItem('proofhire_user');
+    localStorage.removeItem('proofhire_auth_session');
+    localStorage.removeItem('proofhire_evidence');
+    localStorage.removeItem('proofhire_student_evidence');
+    localStorage.removeItem('proofhire_student_skills');
+    localStorage.removeItem('proofhire_resume_skills');
   };
 
   const registerStudent = async (data: Partial<UserProfile> & { password?: string; skills?: string[] }) => {
@@ -306,6 +311,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setCurrentUser(candidateProfile);
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(candidateProfile));
+          // Reset evidence cache for new student registration so evidence registry starts fresh & dynamic
+          localStorage.removeItem('proofhire_evidence');
+          localStorage.removeItem('proofhire_student_evidence');
+          localStorage.setItem(`proofhire_student_evidence_${userId}`, JSON.stringify([]));
           setIsLoading(false);
           return { success: true };
         }
@@ -327,6 +336,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setCurrentUser(fallbackUser);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(fallbackUser));
+      localStorage.removeItem('proofhire_evidence');
+      localStorage.removeItem('proofhire_student_evidence');
+      localStorage.setItem(`proofhire_student_evidence_${fallbackUser.id}`, JSON.stringify([]));
       setIsLoading(false);
       return { success: true };
     } catch (err: any) {

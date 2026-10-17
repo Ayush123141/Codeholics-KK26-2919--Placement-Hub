@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import { EvidenceType, EvidenceRecord } from '@/types';
 import { studentApi } from '@/lib/api/studentApi';
 import { CANONICAL_SKILLS } from '@/lib/services/skillCatalogue';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export interface AddEvidenceModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
   onClose,
   onEvidenceAdded,
 }) => {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,7 +125,7 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
     setIsSubmitting(true);
     try {
       const created = await studentApi.addEvidence({
-        studentId: 'student-demo-001',
+        studentId: user?.id || 'anonymous-student',
         skillId: `skill-${finalSkill.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
         skillName: finalSkill,
         type,

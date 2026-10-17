@@ -46,8 +46,19 @@ function saveStored<T>(key: string, data: T): void {
 }
 
 
+function getCurrentStudentId(): string {
+  try {
+    const raw = localStorage.getItem('proofhire_user') || localStorage.getItem('proofhire_auth_session');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.id) return parsed.id;
+    }
+  } catch {}
+  return 'anonymous-student';
+}
+
 let localStudentProfile: UserProfile = loadStored('proofhire_auth_session', { ...DEMO_USERS.student });
-let localEvidence: EvidenceRecord[] = loadStored('proofhire_student_evidence', [...DEMO_EVIDENCE]);
+let localEvidence: EvidenceRecord[] = [];
 let localSkills: StudentSkill[] = loadStored('proofhire_student_skills', [...DEMO_SKILLS]);
 let localProjects: StudentProject[] = loadStored('proofhire_student_projects', [...DEMO_PROJECTS]);
 let localEducation: StudentEducation[] = loadStored('proofhire_student_education', [...DEMO_EDUCATION]);
@@ -184,13 +195,13 @@ export const studentApi = {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: evList } = await supabase
+          const { data: evList, error: evError } = await supabase
             .from('evidence_records')
             .select('*')
             .eq('student_id', user.id)
             .order('created_at', { ascending: false });
 
-          if (evList && evList.length > 0) {
+          if (!evError && Array.isArray(evList)) {
             const typeMap: Record<string, any> = { 'GITHUB_REPO': 'GITHUB' };
             const fromDb: EvidenceRecord[] = evList.map((e) => {
               const meta = e.metadata || {};
@@ -200,14 +211,14 @@ export const studentApi = {
               return {
                 id: e.id,
                 studentId: e.student_id,
-                skillId: e.id,
-                skillName: e.title?.split(' ')[0] || 'Technical Skill',
+                skillId: meta.skillId || e.id,
+                skillName: meta.skillName || (e.title ? e.title.split(' ')[0] : 'Technical Skill'),
                 type,
                 title: e.title,
                 status: isVerified ? 'VERIFIED' : (e.status || 'VERIFIED'),
                 score: typeof e.score === 'number' ? `${e.score}%` : (e.score || '92%'),
                 date: new Date(e.created_at).toLocaleDateString(),
-                details: e.description || e.details || '',
+                details: e.description || '',
                 verifier: meta.verifier || 'ProofHire Automated Assessment Engine v1.2',
                 issuer: meta.issuer,
                 credibilityScore: meta.credibilityScore || 94,
@@ -219,20 +230,45 @@ export const studentApi = {
               };
             });
 
-            // Merge with localEvidence (avoid duplicate IDs)
-            const dbIds = new Set(fromDb.map((d) => d.id));
-            const nonDupLocals = localEvidence.filter((l) => !dbIds.has(l.id));
-            return [...fromDb, ...nonDupLocals];
+            // Sync strictly to user-scoped localStorage
+            try {
+              localStorage.setItem(`proofhire_student_evidence_${user.id}`, JSON.stringify(fromDb));
+            } catch {}
+
+            // Return strictly this student's unique records (empty array if not submitted yet)
+            return fromDb;
           }
         }
       } catch (err) {
         console.warn('Supabase getEvidence notice:', err);
       }
     }
-    return localEvidence;
+
+    // Offline / Local storage fallback (strictly user-scoped)
+    const currentUserId = getCurrentStudentId();
+    if (currentUserId && currentUserId !== 'anonymous-student') {
+      try {
+        const stored = localStorage.getItem(`proofhire_student_evidence_${currentUserId}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch {}
+
+      // If strictly the default demo student ID
+      if (currentUserId === 'demo-student-id' || currentUserId === 'student-demo-001') {
+        return [...DEMO_EVIDENCE];
+      }
+    }
+
+    return [];
   },
 
   async addEvidence(newEvidence: Omit<EvidenceRecord, 'id'>): Promise<EvidenceRecord> {
+    const currentUserId = newEvidence.studentId && newEvidence.studentId !== 'student-demo-001' && newEvidence.studentId !== 'anonymous-student'
+      ? newEvidence.studentId
+      : getCurrentStudentId();
+
     const createdId = `ev-${Date.now()}`;
 
     // Execute Automated Score & Credibility Evaluation
@@ -253,6 +289,7 @@ export const studentApi = {
     const created: EvidenceRecord = {
       ...newEvidence,
       id: createdId,
+      studentId: currentUserId,
       status: 'VERIFIED',
       score: evaluation.score,
       verifier: evaluation.verifier,
@@ -267,35 +304,77 @@ export const studentApi = {
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+        const effectiveStudentId = user?.id || (currentUserId !== 'anonymous-student' ? currentUserId : null);
+        if (effectiveStudentId) {
           const dbType = newEvidence.type === 'GITHUB' ? 'GITHUB_REPO' : newEvidence.type;
-          await supabase.from('evidence_records').insert({
-            student_id: user.id,
-            title: newEvidence.title,
-            type: dbType,
-            status: 'ISSUER_VERIFIED',
-            score: evaluation.numericScore,
-            source_url: newEvidence.sourceUrl || null,
-            description: newEvidence.details,
-            metadata: {
-              credibilityScore: evaluation.credibilityScore,
-              verifier: evaluation.verifier,
-              issuer: evaluation.issuer,
-              authenticity: evaluation.authenticityRating,
-              auditMetrics: evaluation.auditMetrics,
-              repoFiles: evaluation.repoFiles,
-              certificateFileName: evaluation.certificateFileName || newEvidence.certificateFileName,
-            },
-            verified_at: new Date().toISOString(),
-          });
+          const { data: inserted, error: insertErr } = await supabase
+            .from('evidence_records')
+            .insert({
+              student_id: effectiveStudentId,
+              title: newEvidence.title,
+              type: dbType,
+              status: 'ISSUER_VERIFIED',
+              score: evaluation.numericScore,
+              source_url: newEvidence.sourceUrl || null,
+              description: newEvidence.details,
+              metadata: {
+                skillName: newEvidence.skillName,
+                credibilityScore: evaluation.credibilityScore,
+                verifier: evaluation.verifier,
+                issuer: evaluation.issuer,
+                authenticity: evaluation.authenticityRating,
+                auditMetrics: evaluation.auditMetrics,
+                repoFiles: evaluation.repoFiles,
+                certificateFileName: evaluation.certificateFileName || newEvidence.certificateFileName,
+              },
+              verified_at: new Date().toISOString(),
+            })
+            .select()
+            .maybeSingle();
+
+          if (inserted) {
+            created.id = inserted.id;
+            created.studentId = inserted.student_id;
+          }
+          if (insertErr) {
+            console.error('Supabase addEvidence insert error:', insertErr);
+          }
         }
       } catch (e) {
         console.warn('Supabase addEvidence notice:', e);
       }
     }
 
-    localEvidence = [created, ...localEvidence];
-    saveStored('proofhire_evidence', localEvidence);
+    // Save to user-scoped localStorage
+    const targetStudentId = created.studentId || currentUserId;
+    try {
+      const storageKey = `proofhire_student_evidence_${targetStudentId}`;
+      const existingRaw = localStorage.getItem(storageKey);
+      const existingList: EvidenceRecord[] = existingRaw ? JSON.parse(existingRaw) : [];
+      const updatedList = [created, ...existingList.filter((e) => e.id !== created.id)];
+      localStorage.setItem(storageKey, JSON.stringify(updatedList));
+      localEvidence = updatedList;
+    } catch {}
+
+    // Synchronize skill status in tracked skills
+    if (newEvidence.skillName) {
+      const skillLower = newEvidence.skillName.toLowerCase();
+      localSkills = localSkills.map((sk) => {
+        if (sk.canonicalName.toLowerCase() === skillLower) {
+          return {
+            ...sk,
+            status: 'VERIFIED',
+            evidenceCount: (sk.evidenceCount || 0) + 1,
+            evidenceIds: Array.from(new Set([...(sk.evidenceIds || []), created.id])),
+          };
+        }
+        return sk;
+      });
+      try {
+        localStorage.setItem('proofhire_student_skills', JSON.stringify(localSkills));
+      } catch {}
+    }
+
     return created;
   },
 
@@ -526,8 +605,8 @@ export const studentApi = {
         canonicalName: s,
         category: 'Technical',
         proficiencyLevel: idx < 3 ? 'Advanced' : 'Intermediate',
-        evidenceCount: 1,
-        status: 'REVIEWED',
+        evidenceCount: 0,
+        status: 'NO_EVIDENCE',
         evidenceIds: [],
       }));
       localSkills = newSkills;
