@@ -21,6 +21,8 @@ import {
   StudentExperience, 
   Job, 
   Application, 
+  ApplicationStage,
+  ApplicationEvent,
   ResumeBulletItem, 
   ResumeClaim,
   AssessmentItem,
@@ -64,7 +66,7 @@ let localProjects: StudentProject[] = loadStored('proofhire_student_projects', [
 let localEducation: StudentEducation[] = loadStored('proofhire_student_education', [...DEMO_EDUCATION]);
 let localExperience: StudentExperience[] = loadStored('proofhire_student_experience', [...DEMO_EXPERIENCE]);
 let localJobs: Job[] = [...DEMO_JOBS];
-let localApplications: Application[] = [...DEMO_APPLICATIONS];
+let localApplications: Application[] = loadStored('proofhire_student_applications', [...DEMO_APPLICATIONS]);
 
 export const studentApi = {
   async getProfile(): Promise<UserProfile> {
@@ -469,8 +471,40 @@ export const studentApi = {
   async applyToJob(jobId: string): Promise<Application> {
     const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
     const jobs = await this.getJobs();
-    const job = jobs.find((j) => j.id === jobId) || localJobs.find((j) => j.id === jobId) || { id: jobId, title: 'Engineering Application', company: 'Partner Company' };
+    const candidateSkills = await this.getSkills();
+    const job = jobs.find((j) => j.id === jobId) || localJobs.find((j) => j.id === jobId) || {
+      id: jobId,
+      title: 'Engineering Application',
+      company: 'Partner Company',
+      requiredSkills: [],
+      preferredSkills: [],
+    };
     (job as any).hasApplied = true;
+
+    // Calculate dynamic fit score based on candidate skills vs job requirements (80/20 formula)
+    let dynamicFitScore = 85;
+    try {
+      const studentSkillSet = new Set(candidateSkills.map((s) => s.canonicalName.toLowerCase()));
+      const reqList = job.requiredSkills?.map((s) => s.canonicalName.toLowerCase()) || [];
+      const prefList = job.preferredSkills?.map((s) => s.canonicalName.toLowerCase()) || [];
+      const matchedReq = reqList.filter((s) => studentSkillSet.has(s)).length;
+      const matchedPref = prefList.filter((s) => studentSkillSet.has(s)).length;
+      const totalReq = reqList.length || 1;
+      const totalPref = prefList.length || 0;
+      const reqWeight = totalPref > 0 ? 0.8 : 1.0;
+      const prefWeight = totalPref > 0 ? 0.2 : 0.0;
+      const reqScore = (matchedReq / totalReq) * reqWeight * 100;
+      const prefScore = totalPref > 0 ? (matchedPref / totalPref) * prefWeight * 100 : 0;
+      dynamicFitScore = Math.max(50, Math.min(98, Math.round(reqScore + prefScore)));
+    } catch {}
+
+    const nowFormatted = new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -487,30 +521,20 @@ export const studentApi = {
             if (camp?.id) campaignId = camp.id;
           } catch {}
 
-          await supabase.from('applications').insert({
+          const { data: insertedApp } = await supabase.from('applications').insert({
             job_id: jobId,
             student_id: user.id,
             campaign_id: campaignId,
             current_stage: 'APPLIED',
-          });
+          }).select().single();
 
-          // Also insert into application_events
-          try {
-            const { data: newApp } = await supabase
-              .from('applications')
-              .select('id')
-              .eq('job_id', jobId)
-              .eq('student_id', user.id)
-              .maybeSingle();
-
-            if (newApp?.id) {
-              await supabase.from('application_events').insert({
-                application_id: newApp.id,
-                to_stage: 'APPLIED',
-                notes: 'Application submitted with verified evidence ledger.',
-              });
-            }
-          } catch {}
+          if (insertedApp?.id) {
+            await supabase.from('application_events').insert({
+              application_id: insertedApp.id,
+              to_stage: 'APPLIED',
+              notes: 'Application submitted with verified evidence ledger.',
+            });
+          }
         }
       } catch (e) {
         console.warn('Supabase applyToJob notice:', e);
@@ -524,15 +548,15 @@ export const studentApi = {
       companyName: (job as any).company,
       studentId: localStudentProfile.id,
       studentName: localStudentProfile.name,
-      appliedAt: new Date().toLocaleDateString(),
+      appliedAt: nowFormatted,
       currentStage: 'APPLIED',
-      fitScore: 88,
+      fitScore: dynamicFitScore,
       events: [
         {
           id: `ev-app-${Date.now()}`,
           applicationId: `app-${Date.now()}`,
           toStage: 'APPLIED',
-          timestamp: new Date().toLocaleDateString(),
+          timestamp: nowFormatted,
           actorName: localStudentProfile.name,
           actorRole: 'STUDENT',
           notes: 'Application submitted with verified evidence ledger.',
@@ -540,8 +564,34 @@ export const studentApi = {
       ],
     };
 
-    localApplications = [newApp, ...localApplications];
+    // Filter out if already in localApplications (avoid duplicates)
+    localApplications = [newApp, ...localApplications.filter((a) => a.jobId !== job.id)];
+    saveStored('proofhire_student_applications', localApplications);
     return newApp;
+  },
+
+  async withdrawApplication(applicationId: string): Promise<boolean> {
+    const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    if (isSupabaseConfigured && supabase && isUuid(applicationId)) {
+      try {
+        await supabase.from('applications').delete().eq('id', applicationId);
+      } catch (e) {
+        console.warn('Supabase withdrawApplication error:', e);
+      }
+    }
+
+    const target = localApplications.find((a) => a.id === applicationId);
+    if (target) {
+      const targetJob = localJobs.find((j) => j.id === target.jobId);
+      if (targetJob) {
+        targetJob.hasApplied = false;
+      }
+    }
+
+    localApplications = localApplications.filter((a) => a.id !== applicationId);
+    saveStored('proofhire_student_applications', localApplications);
+    return true;
   },
 
   async getApplications(): Promise<Application[]> {
@@ -549,27 +599,97 @@ export const studentApi = {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: dbApps } = await supabase
+          const { data: dbApps, error } = await supabase
             .from('applications')
-            .select('*, jobs(*)')
-            .eq('student_id', user.id);
+            .select(`
+              id,
+              job_id,
+              current_stage,
+              created_at,
+              jobs ( id, title, company_name, location, workplace_type ),
+              application_events ( id, from_stage, to_stage, notes, created_at )
+            `)
+            .eq('student_id', user.id)
+            .order('created_at', { ascending: false });
 
-          if (dbApps && dbApps.length > 0) {
-            return dbApps.map((a: any) => ({
-              id: a.id,
-              jobId: a.job_id,
-              jobTitle: a.jobs?.title || 'Applied Position',
-              companyName: a.jobs?.company_name || 'Hiring Partner',
-              studentId: a.student_id,
-              studentName: localStudentProfile.name,
-              appliedAt: new Date(a.created_at).toLocaleDateString(),
-              currentStage: a.stage || 'APPLIED',
-              fitScore: 85,
-              events: [],
-            }));
+          if (!error && dbApps && dbApps.length > 0) {
+            const stageMap: Record<string, ApplicationStage> = {
+              'APPLIED': 'APPLIED',
+              'SHORTLISTED': 'SHORTLISTED',
+              'ASSESSMENT': 'TECHNICAL_ASSESSMENT',
+              'TECHNICAL_ASSESSMENT': 'TECHNICAL_ASSESSMENT',
+              'INTERVIEW': 'INTERVIEW',
+              'OFFERED': 'OFFER',
+              'OFFER': 'OFFER',
+              'REJECTED': 'REJECTED',
+            };
+
+            const dbMapped: Application[] = dbApps.map((a: any) => {
+              const currentStage: ApplicationStage = stageMap[a.current_stage] || 'APPLIED';
+              const events: ApplicationEvent[] = (a.application_events || []).map((ev: any) => ({
+                id: ev.id,
+                applicationId: a.id,
+                fromStage: ev.from_stage ? stageMap[ev.from_stage] : undefined,
+                toStage: stageMap[ev.to_stage] || 'APPLIED',
+                timestamp: new Date(ev.created_at).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                actorName: 'Placement Cell',
+                actorRole: 'PLACEMENT_OFFICER',
+                notes: ev.notes || `Pipeline stage transitioned to ${ev.to_stage}.`,
+              }));
+
+              const defaultEvents: ApplicationEvent[] = [
+                {
+                  id: `ev-init-${a.id}`,
+                  applicationId: a.id,
+                  toStage: currentStage,
+                  timestamp: new Date(a.created_at).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }),
+                  actorName: localStudentProfile.name,
+                  actorRole: 'STUDENT',
+                  notes: 'Application registered with verified skill proof.',
+                },
+              ];
+
+              return {
+                id: a.id,
+                jobId: a.job_id,
+                jobTitle: a.jobs?.title || 'Engineering Role',
+                companyName: a.jobs?.company_name || 'Hiring Partner',
+                studentId: user.id,
+                studentName: localStudentProfile.name,
+                appliedAt: new Date(a.created_at).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                currentStage,
+                fitScore: 88,
+                events: events.length > 0 ? events : defaultEvents,
+              };
+            });
+
+            // Merge with localApplications (ensure local offline/recent items aren't lost)
+            const dbJobIds = new Set(dbMapped.map((d) => d.jobId));
+            const extraLocal = localApplications.filter((l) => !dbJobIds.has(l.jobId));
+            return [...dbMapped, ...extraLocal];
           }
         }
-      } catch {}
+      } catch (e) {
+        console.warn('Supabase getApplications notice:', e);
+      }
     }
 
     return localApplications;

@@ -1,14 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  UploadCloud, 
-  FileCheck, 
-  CheckCircle2, 
   FolderGit2, 
-  BookOpen, 
   Award,
-  ShieldCheck,
   Sparkles,
-  X
+  X,
+  FileCheck
 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -35,8 +31,8 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [skillName, setSkillName] = useState('React');
-  const [type, setType] = useState<EvidenceType>('PROJECT');
+  const [skillName, setSkillName] = useState('');
+  const [type, setType] = useState<EvidenceType>('CERTIFICATE');
   const [title, setTitle] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [details, setDetails] = useState('');
@@ -58,7 +54,7 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
     const cleanResumeSkills = Array.from(new Set(fromResume.map((s) => s.trim()).filter(Boolean)));
     setResumeSkills(cleanResumeSkills);
 
-    // 2. Fetch baseline canonical catalogue skills so data is always rich and displayed
+    // 2. Fetch baseline canonical catalogue skills as reference
     const canonical = CANONICAL_SKILLS.map((s) => s.name);
     setCanonicalSkills(canonical);
 
@@ -108,7 +104,7 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
     e.preventDefault();
     const finalSkill = isCustomSkill ? customSkillName.trim() : skillName.trim();
     if (!finalSkill) {
-      showToast('Please select or enter a valid canonical skill', 'error');
+      showToast('Please select or enter a valid skill from your resume', 'error');
       return;
     }
 
@@ -162,7 +158,7 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Submit Verifiable Skill Evidence"
-      description="Connect practical codebase audits, evaluated projects, or credentials. Automated engine audits authenticity instantly."
+      description="Connect practical code repositories or certifications. Automated engine audits authenticity instantly."
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -183,10 +179,10 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Select
-              label="Canonical Skill"
+              label="Canonical Skill (from Resume)"
               value={isCustomSkill ? '__CUSTOM__' : skillName}
               onChange={handleSkillChange}
             >
@@ -245,15 +241,14 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
             )}
           </div>
 
-          {/* Three standardized evidence types (Skill Assessment is handled via proctored section) */}
+          {/* Evidence Category: strictly restricted to 1) Certifications, 2) GitHub Repository */}
           <Select
             label="Evidence Category"
             value={type}
             onChange={(e) => setType(e.target.value as EvidenceType)}
           >
-            <option value="PROJECT">Evaluated Project (Capstone / Coursework)</option>
-            <option value="GITHUB">GitHub Repository Audit</option>
-            <option value="CERTIFICATE">Credential / Certificate</option>
+            <option value="CERTIFICATE">1) Certifications</option>
+            <option value="GITHUB">2) GitHub Repository</option>
           </Select>
         </div>
 
@@ -262,9 +257,7 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
           placeholder={
             type === 'GITHUB'
               ? 'e.g. Distributed In-Memory Cache with LRU Eviction'
-              : type === 'CERTIFICATE'
-              ? 'e.g. AWS Certified Developer Associate'
-              : 'e.g. Full-Stack Analytics Telemetry Engine'
+              : 'e.g. AWS Certified Developer Associate or Meta Frontend Specialist'
           }
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -288,16 +281,6 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
               </p>
             </div>
           </div>
-        )}
-
-        {/* Evaluated Project Section */}
-        {type === 'PROJECT' && (
-          <Input
-            label="Project Repository / Live Demo URL (Optional)"
-            placeholder="https://github.com/username/capstone-project"
-            value={sourceUrl}
-            onChange={(e) => setSourceUrl(e.target.value)}
-          />
         )}
 
         {/* Certificate Section with Document Upload */}
@@ -333,41 +316,35 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg"
-                onChange={handleFileChange}
                 className="hidden"
+                onChange={handleFileChange}
               />
 
-              {certificateFile ? (
-                <div className="p-3 bg-white rounded-lg border border-emerald-200 flex items-center justify-between shadow-xs">
-                  <div className="flex items-center gap-2 text-xs">
-                    <FileCheck className="w-4 h-4 text-emerald-600" />
-                    <div>
-                      <p className="font-bold text-slate-900">{certificateFile.name}</p>
-                      <p className="text-[10px] text-slate-500">
-                        {(certificateFile.size / 1024).toFixed(1)} KB • Cryptographic checksum ready
-                      </p>
-                    </div>
+              {!certificateFile ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 hover:border-amber-500 rounded-lg p-4 text-center cursor-pointer transition-colors bg-white group"
+                >
+                  <Award className="w-6 h-6 text-slate-400 group-hover:text-amber-500 mx-auto mb-1 transition-colors" />
+                  <p className="text-xs font-semibold text-slate-700">Click to attach official certificate</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">PDF, PNG, JPG up to 15MB</p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-2.5 bg-amber-50/70 border border-amber-200 rounded-lg text-xs">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <FileCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span className="font-semibold text-slate-800 truncate">{certificateFile.name}</span>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      ({(certificateFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
                   </div>
                   <button
                     type="button"
                     onClick={removeCertificateFile}
-                    className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                    className="p-1 hover:bg-amber-100 rounded text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
-                </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-4 rounded-lg border-2 border-dashed border-slate-300 hover:border-brand-500 hover:bg-white bg-slate-50/50 cursor-pointer text-center transition-all"
-                >
-                  <UploadCloud className="w-6 h-6 text-slate-400 mx-auto mb-1" />
-                  <p className="text-xs font-semibold text-slate-700">
-                    Click or drag certificate file to attach
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    Supports official PDF certificates, badges, and transcripts up to 15MB
-                  </p>
                 </div>
               )}
             </div>
@@ -376,32 +353,24 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
 
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700">
-            Implementation Scope & Verifiable Details <span className="text-rose-500">*</span>
+            Evaluation Details & Implementation Scope <span className="text-rose-500">*</span>
           </label>
           <textarea
             rows={3}
-            className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-            placeholder="Describe the rubric, architecture patterns, or verified implementation criteria..."
+            className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+            placeholder="Describe the rubric, proctored score, or architecture benchmarks..."
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             required
           />
         </div>
 
-        {/* Dynamic Automated Verification Banner */}
-        <div className="p-3 bg-brand-50/80 border border-brand-200 rounded-lg text-[11px] text-brand-900 flex items-start gap-2">
-          <ShieldCheck className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            <span className="font-bold">ProofHire Automated Score Engine:</span> Submitted artifacts are verified dynamically through AST code audits, rubric checks, and cryptographic issuer verification. Results and credibility scores are reflected automatically without placement officer review queues.
-          </div>
-        </div>
-
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
           <Button variant="outline" type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" isLoading={isSubmitting} className="font-bold">
-            Submit & Verify Artifact
+          <Button type="submit" isLoading={isSubmitting}>
+            Submit Artifact
           </Button>
         </div>
       </form>

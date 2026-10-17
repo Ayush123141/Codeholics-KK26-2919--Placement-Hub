@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Briefcase,
   FileText,
-  FileCheck2,
   Send,
   Building2,
   CopyCheck,
@@ -40,7 +39,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
     { label: 'My Evidence', path: '/student/evidence', icon: <ShieldCheck className="w-4 h-4" /> },
     { label: 'Skill Assessments', path: '/student/assessments', icon: <ClipboardCheck className="w-4 h-4" />, badge: 'Proctored' },
     { label: 'My Resume Studio', path: '/student/resume-studio', icon: <FileText className="w-4 h-4" /> },
-    { label: 'Resume Claim Review', path: '/student/claim-review', icon: <FileCheck2 className="w-4 h-4" /> },
     { label: 'Applications', path: '/student/applications', icon: <Send className="w-4 h-4" /> },
   ];
 

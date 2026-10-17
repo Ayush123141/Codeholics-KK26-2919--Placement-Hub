@@ -439,20 +439,6 @@ export const StudentDashboard: React.FC = () => {
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
-
-              <button
-                onClick={() => navigate('/student/claim-review')}
-                className="w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-left"
-              >
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">Resume Claim Review</p>
-                    <p className="text-[10px] text-slate-500">Audit uploaded PDF claims</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </button>
             </CardContent>
           </Card>
         </div>

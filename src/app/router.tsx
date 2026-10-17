@@ -21,7 +21,6 @@ import { StudentAssessments } from '@/features/student/StudentAssessments';
 import { StudentEvidence } from '@/features/student/StudentEvidence';
 import { JobDiscovery } from '@/features/student/JobDiscovery';
 import { ResumeStudio } from '@/features/student/ResumeStudio';
-import { ResumeClaimReview } from '@/features/student/ResumeClaimReview';
 import { ApplicationTracker } from '@/features/student/ApplicationTracker';
 
 // Placement Officer Pages
@@ -69,7 +68,7 @@ const router = createBrowserRouter([
       { path: 'evidence', element: <StudentEvidence /> },
       { path: 'jobs', element: <JobDiscovery /> },
       { path: 'resume-studio', element: <ResumeStudio /> },
-      { path: 'claim-review', element: <ResumeClaimReview /> },
+      { path: 'claim-review', element: <Navigate to="/student/evidence" replace /> },
       { path: 'applications', element: <ApplicationTracker /> },
     ],
   },
