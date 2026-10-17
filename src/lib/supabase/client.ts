@@ -7,8 +7,9 @@ const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
   supabasePublishableKey &&
-  supabaseUrl !== 'https://your-project.supabase.co' &&
-  !supabasePublishableKey.includes('your-supabase-publishable-key')
+  !supabaseUrl.includes('your-project') &&
+  !supabasePublishableKey.includes('your-supabase') &&
+  !supabasePublishableKey.includes('your_supabase')
 );
 
 let supabaseInstance: SupabaseClient | null = null;
