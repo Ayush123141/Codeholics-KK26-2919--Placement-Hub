@@ -170,6 +170,7 @@ export interface MatchingResult {
   isShortlisted: boolean;
   assessmentScore?: number;
   applicationStage?: ApplicationStage;
+  hasOfferSecured?: boolean;
 }
 
 export interface Campaign {
@@ -178,6 +179,7 @@ export interface Campaign {
   companyName: string;
   jobId: string;
   jobTitle: string;
+  salaryRange?: string;
   cohortId: string;
   cohortName: string;
   status: 'ACTIVE' | 'SHORTLISTING' | 'INTERVIEWING' | 'COMPLETED';

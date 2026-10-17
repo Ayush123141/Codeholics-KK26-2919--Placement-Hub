@@ -51,42 +51,61 @@ export const placementApi = {
       try {
         const { data: dbCamps, error } = await client
           .from('campaigns')
-          .select('*, jobs(*), applications(count)')
+          .select('*, jobs(*), applications(*)')
           .order('created_at', { ascending: false });
 
         if (!error && dbCamps && dbCamps.length > 0) {
           const fromDb: Campaign[] = dbCamps.map((c: any) => {
-            const totalApps = c.applications?.[0]?.count ?? (Array.isArray(c.applications) ? c.applications.length : 0);
+            const apps = Array.isArray(c.applications) ? c.applications : [];
+            const totalApps = apps.length;
+            // Shortlisted count strictly reflects verified shortlisted candidates
+            const shortlistedCount = apps.filter((a: any) => 
+              ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'INTERVIEW', 'OFFER', 'OFFERED'].includes(a.current_stage)
+            ).length;
+            const interviewCount = apps.filter((a: any) => 
+              ['INTERVIEW', 'OFFER', 'OFFERED'].includes(a.current_stage)
+            ).length;
+            const offersCount = apps.filter((a: any) => 
+              ['OFFER', 'OFFERED', 'HIRED'].includes(a.current_stage)
+            ).length;
+
             return {
               id: c.id,
               title: c.title,
               companyName: c.jobs?.company_name || 'CloudScale Technologies',
               jobId: c.job_id,
               jobTitle: c.jobs?.title || 'Platform Engineer',
+              salaryRange: c.jobs?.salary_range || c.salary_range || '₹10,00,000 - ₹18,00,000',
               cohortId: 'cohort-2026-cs-it',
               cohortName: `${c.target_cohort_year || 2026} Batch — B.Tech Computer Science & IT (240 Students)`,
               status: c.is_active ? 'ACTIVE' : 'COMPLETED',
               startDate: c.created_at ? c.created_at.split('T')[0] : '2026-01-15',
-              deadline: '2026-11-30',
-              targetHires: 5,
+              deadline: c.deadline || '2026-11-30',
+              targetHires: c.target_hires || 5,
               policyVersion: 'v1.0-deterministic-80-20',
               totalApplicants: totalApps,
-              shortlistedCount: Math.min(totalApps, 3),
-              interviewCount: Math.min(totalApps, 1),
-              offersCount: 0,
+              shortlistedCount,
+              interviewCount,
+              offersCount,
             };
           });
 
           // Merge with DEMO_CAMPAIGNS (ensure no duplicates)
           const dbCampIds = new Set(fromDb.map(d => d.id));
           const nonDuplicateDemos = DEMO_CAMPAIGNS.filter(d => !dbCampIds.has(d.id));
-          return [...fromDb, ...nonDuplicateDemos];
+          const combined = [...fromDb, ...nonDuplicateDemos];
+
+          // Sort so recent drives appear first
+          combined.sort((a, b) => new Date(b.startDate || '2026-01-01').getTime() - new Date(a.startDate || '2026-01-01').getTime());
+          return combined;
         }
       } catch (e) {
         console.warn('Supabase getCampaigns fallback notice:', e);
       }
     }
-    return localCampaigns;
+
+    const localSorted = [...localCampaigns].sort((a, b) => new Date(b.startDate || '2026-01-01').getTime() - new Date(a.startDate || '2026-01-01').getTime());
+    return localSorted;
   },
 
   async createCampaign(newCampaign: Omit<Campaign, 'id' | 'shortlistedCount' | 'interviewCount' | 'offersCount' | 'totalApplicants'>): Promise<Campaign> {
@@ -101,8 +120,7 @@ export const placementApi = {
           if (user?.id) officerId = user.id;
         } catch {}
 
-
-        // 1. Ensure a job exists in jobs table
+        // 1. Ensure a job exists in jobs table with configurable salary_range
         let dbJobId = newCampaign.jobId;
         if (!dbJobId || !isUuid(dbJobId)) {
           const { data: createdJob, error: jobErr } = await client
@@ -112,12 +130,11 @@ export const placementApi = {
               company_name: newCampaign.companyName || 'Corporate Partner',
               location: 'Bengaluru / Pune (Hybrid)',
               description: `Campus recruitment drive for ${newCampaign.title}. Seeking candidates with verified technical skills.`,
-              salary_range: '8 - 14 LPA',
+              salary_range: newCampaign.salaryRange || '₹10,00,000 - ₹18,00,000',
               is_active: true,
             })
             .select()
             .single();
-
 
           if (createdJob) {
             dbJobId = createdJob.id;
@@ -148,6 +165,7 @@ export const placementApi = {
               companyName: newCampaign.companyName,
               jobId: dbJobId,
               jobTitle: newCampaign.jobTitle,
+              salaryRange: newCampaign.salaryRange || '₹10,00,000 - ₹18,00,000',
               cohortId: newCampaign.cohortId || 'cohort-2026-cs-it',
               cohortName: newCampaign.cohortName || '2026 Batch — B.Tech Computer Science & IT',
               status: 'ACTIVE',
@@ -174,6 +192,7 @@ export const placementApi = {
     const created: Campaign = {
       ...newCampaign,
       id: `campaign-${Date.now()}`,
+      salaryRange: newCampaign.salaryRange || '₹10,00,000 - ₹18,00,000',
       shortlistedCount: 0,
       interviewCount: 0,
       offersCount: 0,
@@ -181,6 +200,49 @@ export const placementApi = {
     };
     localCampaigns = [created, ...localCampaigns];
     return created;
+  },
+
+  async updateCampaign(campaignId: string, updates: Partial<Campaign>): Promise<Campaign> {
+    const client = supabaseAdmin || supabase;
+    if (isSupabaseConfigured && client) {
+      try {
+        if (updates.title || updates.status) {
+          await client
+            .from('campaigns')
+            .update({
+              ...(updates.title ? { title: updates.title } : {}),
+              ...(updates.status ? { is_active: updates.status === 'ACTIVE' } : {}),
+            })
+            .eq('id', campaignId);
+        }
+
+        if (updates.salaryRange || updates.jobTitle) {
+          const camp = localCampaigns.find(c => c.id === campaignId);
+          if (camp?.jobId) {
+            await client
+              .from('jobs')
+              .update({
+                ...(updates.salaryRange ? { salary_range: updates.salaryRange } : {}),
+                ...(updates.jobTitle ? { title: updates.jobTitle } : {}),
+              })
+              .eq('id', camp.jobId);
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase updateCampaign notice:', e);
+      }
+    }
+
+    localCampaigns = localCampaigns.map(c => {
+      if (c.id === campaignId) {
+        return { ...c, ...updates };
+      }
+      return c;
+    });
+
+    const updated = localCampaigns.find(c => c.id === campaignId);
+    if (!updated) throw new Error('Campaign not found');
+    return updated;
   },
 
   async getJobSources(): Promise<JobSource[]> {
@@ -304,6 +366,7 @@ export const placementApi = {
               : 65;
             const dynamicFitScore = Math.min(98, Math.max(45, Math.round(avgScore * 0.6 + Math.min(1, coverageRatio) * 40)));
 
+            const hasOfferSecured = ['OFFERED', 'OFFER', 'HIRED'].includes(a.current_stage);
             const isShortlisted = ['SHORTLISTED', 'ASSESSMENT', 'INTERVIEW', 'OFFERED', 'OFFER', 'TECHNICAL_ASSESSMENT'].includes(a.current_stage);
 
             return {
@@ -315,14 +378,24 @@ export const placementApi = {
               fitScore: dynamicFitScore,
               assessmentScore: avgScore,
               isShortlisted,
+              hasOfferSecured,
               matchedSkills,
               partialEvidenceSkills,
               noEvidenceSkills,
               preferredGaps: [],
               policyVersion: 'v1.0-deterministic-80-20',
-              explanation: `Deterministic 80/20 Match: Candidate applied for ${a.jobs?.title || 'Engineering Role'} with ${studentEv.length} verified evidence record(s). ${matchedSkills.length} competencies demonstrated.`,
+              explanation: hasOfferSecured
+                ? `Equal Opportunity Priority: Candidate has secured an offer. Ranked at queue bottom to prioritize unplaced cohort peers.`
+                : `Deterministic 80/20 Match: Candidate applied for ${a.jobs?.title || 'Engineering Role'} with ${studentEv.length} verified evidence record(s). ${matchedSkills.length} competencies demonstrated.`,
               evidenceRefs: studentEv.map(e => e.id),
             };
+          });
+
+          // Equal Opportunity Sort: Active candidates ranked by fitScore first; Offer Secured candidates at bottom
+          dbResults.sort((a, b) => {
+            if (a.hasOfferSecured && !b.hasOfferSecured) return 1;
+            if (!a.hasOfferSecured && b.hasOfferSecured) return -1;
+            return b.fitScore - a.fitScore;
           });
 
           return {
@@ -337,17 +410,28 @@ export const placementApi = {
       }
     }
 
+    const localSorted = [...localRanking].map((cand, idx) => ({
+      ...cand,
+      hasOfferSecured: idx === localRanking.length - 1, // Demo placed candidate
+    })).sort((a, b) => {
+      if (a.hasOfferSecured && !b.hasOfferSecured) return 1;
+      if (!a.hasOfferSecured && b.hasOfferSecured) return -1;
+      return b.fitScore - a.fitScore;
+    });
+
     return {
       policyVersion: 'v1.0-deterministic-80-20',
       jobId,
       campaignId,
-      results: localRanking,
+      results: localSorted,
     };
   },
 
   async toggleCandidateShortlist(studentId: string): Promise<boolean> {
     const client = supabaseAdmin || supabase;
     const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    let nextStage: ApplicationStage = 'SHORTLISTED';
 
     if (isSupabaseConfigured && client && isUuid(studentId)) {
       try {
@@ -358,7 +442,7 @@ export const placementApi = {
           .maybeSingle();
 
         if (existingApp) {
-          const nextStage = existingApp.current_stage === 'SHORTLISTED' ? 'APPLIED' : 'SHORTLISTED';
+          nextStage = existingApp.current_stage === 'SHORTLISTED' ? 'APPLIED' : 'SHORTLISTED';
           await client
             .from('applications')
             .update({
@@ -374,21 +458,60 @@ export const placementApi = {
               notes: `Candidate shortlist state updated by Placement Officer.`
             });
           } catch {}
-
-          return nextStage === 'SHORTLISTED';
-
         }
       } catch (e) {
         console.warn('Supabase toggleCandidateShortlist notice:', e);
       }
     }
 
+    // Synchronize local application caches so student views updated stage
+    try {
+      const storedAppsRaw = localStorage.getItem('proofhire_student_applications');
+      if (storedAppsRaw) {
+        const storedApps: Application[] = JSON.parse(storedAppsRaw);
+        const updated = storedApps.map(app => {
+          if (app.studentId === studentId) {
+            return { ...app, currentStage: nextStage };
+          }
+          return app;
+        });
+        localStorage.setItem('proofhire_student_applications', JSON.stringify(updated));
+      }
+    } catch {}
+
     const candidate = localRanking.find(r => r.studentId === studentId);
     if (candidate) {
-      candidate.isShortlisted = !candidate.isShortlisted;
+      candidate.isShortlisted = nextStage === 'SHORTLISTED' ? !candidate.isShortlisted : false;
       return candidate.isShortlisted;
     }
-    return false;
+    return nextStage === 'SHORTLISTED';
+  },
+
+  async autoShortlistVerifiedCandidates(jobId?: string, minScore: number = 70): Promise<{
+    shortlistedCount: number;
+    skippedCount: number;
+    candidates: MatchingResult[];
+  }> {
+    const ranking = await this.runBatchRanking(jobId || 'job-demo-001');
+    let newlyShortlisted = 0;
+    let skipped = 0;
+
+    for (const cand of ranking.results) {
+      const isEligible = cand.matchedSkills.length > 0 && cand.fitScore >= minScore && !cand.hasOfferSecured;
+      if (isEligible && !cand.isShortlisted) {
+        await this.toggleCandidateShortlist(cand.studentId);
+        cand.isShortlisted = true;
+        newlyShortlisted++;
+      } else if (!isEligible && !cand.isShortlisted) {
+        skipped++;
+      }
+    }
+
+    return {
+      shortlistedCount: newlyShortlisted,
+      skippedCount: skipped,
+      candidates: ranking.results,
+    };
   },
 
   async getCohortEvidence(): Promise<{

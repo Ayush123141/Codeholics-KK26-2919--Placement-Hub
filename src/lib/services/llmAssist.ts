@@ -233,177 +233,199 @@ Output ONLY valid raw JSON with this exact schema (no markdown, no backticks, no
   } {
     const s = skillName.toLowerCase();
 
+    // 1. REACT ARCHITECTURE & TRICKY CODE SNIPPETS
     if (s.includes('react')) {
       return {
-        title: 'React Fundamentals & Component Architecture',
+        title: 'React Internals, Reconciliation & Concurrency Benchmark',
         questions: [
           {
             id: 'q1',
-            question: 'What React hook is recommended to run synchronous side-effects before the browser paints?',
-            options: ['useMemo', 'useLayoutEffect', 'useEffect', 'useCallback'],
-            correctIndex: 1,
+            question: `Analyze this React component with an asynchronous timer:
+\`\`\`javascript
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCount(count + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <h1>{count}</h1>;
+}
+\`\`\`
+What value is rendered in <h1> after 5 seconds elapsed?`,
+            options: [
+              'It renders 1 because the closure captured the initial count (0) on mount and never refreshed it',
+              'It renders 5 because setInterval increments count by 1 every second',
+              'It renders NaN because state mutations in setInterval are rejected by React',
+              'It causes an infinite re-render loop crashing the browser window',
+            ],
+            correctIndex: 0,
           },
           {
             id: 'q2',
-            question: 'What is the primary role of keys during the reconciliation algorithm in React lists?',
+            question: `In React 18, consider the following button click handler executing after an async await:
+\`\`\`javascript
+const handleClick = async () => {
+  await fetchUserData();
+  setCount(c => c + 1);
+  setLoading(false);
+};
+\`\`\`
+How many component re-renders occur when \`handleClick\` completes?`,
             options: [
-              'To bind CSS styles dynamically',
-              'To identify which elements were added, removed, or modified across renders',
-              'To serialize DOM state to local storage',
-              'To trigger child re-renders unconditionally',
+              'Exactly 1 re-render, because React 18 automatic batching groups all state updates even across async boundaries',
+              '2 re-renders, because automatic batching is disabled outside synchronous event handlers',
+              '0 re-renders until flushSync() is explicitly triggered',
+              '3 re-renders due to React StrictMode re-invocations in development',
             ],
-            correctIndex: 1,
+            correctIndex: 0,
           },
           {
             id: 'q3',
-            question: 'How does React 18 manage state batching across asynchronous boundaries?',
+            question: `Why does wrapping a child component in \`React.memo\` fail to prevent re-renders when passed this prop?
+\`\`\`jsx
+<DataViewer options={{ filterActive: true }} onSelect={item => handleSelect(item)} />
+\`\`\``,
             options: [
-              'Automatic batching executes across timeouts, promises, and native event handlers',
-              'Updates are never batched outside synthetic event listeners',
-              'Batching must be explicitly wrapped in unstable_batchedUpdates',
-              'Only synchronous updates are combined',
+              'Because object literals and arrow functions create fresh memory references on every parent render, failing shallow reference equality (Object.is)',
+              'React.memo only works with class components and ignores functional props',
+              'React.memo requires DOM refs instead of JavaScript objects',
+              'Arrow functions trigger synthetic unmounting in children',
             ],
             correctIndex: 0,
           },
           {
             id: 'q4',
-            question: 'Which of the following optimizes pure child component renders against unnecessary parent updates?',
-            options: ['React.memo with pure prop comparison', 'useId', 'useTransition', 'useImperativeHandle'],
+            question: 'What is the exact behavioral difference between `useLayoutEffect` and `useEffect` in the browser lifecycle?',
+            options: [
+              'useLayoutEffect runs synchronously immediately after DOM mutations before browser paint; useEffect fires asynchronously after paint',
+              'useEffect runs on the server; useLayoutEffect runs exclusively on mobile web views',
+              'useLayoutEffect cannot access DOM references; useEffect has direct access to document.body',
+              'useEffect blocks the browser UI thread until all child network requests resolve',
+            ],
             correctIndex: 0,
           },
         ],
       };
     }
 
-    if (s.includes('node') || s.includes('express')) {
+    // 2. CLOUD, DEVOPS, DOCKER & KUBERNETES
+    if (s.includes('cloud') || s.includes('devops') || s.includes('docker') || s.includes('kubernetes') || s.includes('aws')) {
       return {
-        title: 'Node.js Core Architecture & Asynchronous I/O',
+        title: 'Cloud Infrastructure, Containers & DevOps Reliability',
         questions: [
           {
             id: 'q1',
-            question: 'Which phase of the Node.js event loop executes setImmediate() callbacks?',
-            options: ['Timers phase', 'Pending I/O callbacks', 'Poll phase', 'Check phase'],
-            correctIndex: 3,
+            question: `Examine this multi-stage Dockerfile configuration:
+\`\`\`dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+\`\`\`
+Why is \`COPY package*.json ./\` intentionally executed before \`COPY . .\`?`,
+            options: [
+              'To utilize Docker layer caching: npm ci only re-executes if dependencies change, speeding up subsequent builds',
+              'Because npm ci cannot resolve directory structures unless package.json is cloned alone',
+              'To automatically strip devDependencies before source code compilation',
+              'To prevent root access permissions inside the builder container image',
+            ],
+            correctIndex: 0,
           },
           {
             id: 'q2',
-            question: 'What is the primary advantage of utilizing Node.js Streams over fs.readFile?',
+            question: 'What happens in a container when a Node.js process runs as PID 1 without an init process (e.g., tini / dumb-init) upon receiving a SIGTERM signal from Kubernetes?',
             options: [
-              'Enables cryptographic hashing automatically',
-              'Processes chunks sequentially without buffering entire file data in heap RAM',
-              'Executes file operations across multi-core workers without thread pools',
-              'Converts async callbacks to synchronized promises automatically',
+              'The process ignores the default SIGTERM signal because Linux kernel grants special immunity to PID 1, leading to forceful SIGKILL after termination grace period',
+              'The container crashes instantly without running any code',
+              'Kubernetes immediately reroutes traffic to fallback pods with zero delay',
+              'The Linux kernel automatically cleans up child zombie processes without daemon help',
             ],
-            correctIndex: 1,
+            correctIndex: 0,
           },
           {
             id: 'q3',
-            question: 'In modern Node.js versions, what is the default behavior when an unhandled promise rejection occurs?',
+            question: 'In Kubernetes Pod health monitoring, what is the crucial difference between a Readiness Probe and a Liveness Probe?',
             options: [
-              'The process terminates with a non-zero exit code (SIGABRT)',
-              'The error is silently suppressed',
-              'Execution retries 3 times before warning',
-              'A warning is printed but the runtime continues uninterrupted',
+              'Failing a Readiness Probe removes the Pod from Service endpoints without killing it; failing a Liveness Probe causes kubelet to terminate and restart the container',
+              'Readiness probes execute once on boot; Liveness probes run only during network partitions',
+              'Readiness probes only check HTTP ports; Liveness probes only test disk storage',
+              'Both probes terminate the pod and delete its persistent volume claim immediately',
             ],
             correctIndex: 0,
           },
           {
             id: 'q4',
-            question: 'Which core module is utilized to scale Node.js processes across multi-core CPUs by forking child processes?',
-            options: ['cluster', 'child_process.execSync', 'vm', 'worker_threads alone'],
+            question: 'Which deployment strategy routes a small percentage of real production traffic (e.g. 5%) to a newly deployed version before rolling out to 100% of the fleet?',
+            options: [
+              'Canary Deployment with Ingress weighted routing',
+              'Big Bang Deployment with immediate DNS cutover',
+              'Shadow Mirroring without network responses',
+              'Blue/Green switchover with instantaneous load balancer swap',
+            ],
             correctIndex: 0,
           },
         ],
       };
     }
 
-    if (s.includes('python')) {
-      return {
-        title: 'Python Engineering & Concurrency Architecture',
-        questions: [
-          {
-            id: 'q1',
-            question: 'What is the function of the Global Interpreter Lock (GIL) in CPython?',
-            options: [
-              'Prevents circular imports at compile time',
-              'Ensures thread-safe memory management by allowing only one native thread to execute bytecode at a time',
-              'Encrypts compiled .pyc bytecode in memory',
-              'Forces garbage collection at regular time intervals',
-            ],
-            correctIndex: 1,
-          },
-          {
-            id: 'q2',
-            question: 'What is the primary operational difference between a generator function and a list comprehension?',
-            options: [
-              'Generators evaluate lazily yielding items on-demand, reducing memory consumption',
-              'Generators can only hold primitive string types',
-              'List comprehensions execute asynchronously in worker threads',
-              'Generators cannot be iterated using a for loop',
-            ],
-            correctIndex: 0,
-          },
-          {
-            id: 'q3',
-            question: 'Which built-in library module provides native asynchronous event loop primitives in Python 3.7+?',
-            options: ['threading', 'asyncio', 'multiprocessing', 'concurrent.futures'],
-            correctIndex: 1,
-          },
-          {
-            id: 'q4',
-            question: 'In Python dictionary implementation, how are average case lookups guaranteed in O(1) time?',
-            options: [
-              'Binary search trees',
-              'Hash table with open addressing and compact array indexing',
-              'Doubly linked lists',
-              'Radix tree nodes',
-            ],
-            correctIndex: 1,
-          },
-        ],
-      };
-    }
-
+    // 3. TYPESCRIPT TYPE SYSTEM & TRICKY CODE SNIPPETS
     if (s.includes('type') || s.includes('ts')) {
       return {
         title: 'TypeScript Type Systems & Advanced Generics',
         questions: [
           {
             id: 'q1',
-            question: 'What does the `never` type represent in TypeScript?',
+            question: `Analyze this conditional type in TypeScript:
+\`\`\`typescript
+type ToArray<T> = T extends any ? T[] : never;
+type Result = ToArray<string | number>;
+\`\`\`
+What is the resolved type of \`Result\`?`,
             options: [
-              'A value that can be assigned null or undefined',
-              'Values that never occur, such as a function that always throws an error or never returns',
-              'Any type that hasn’t been resolved yet by the compiler',
-              'An alias for Object.freeze()',
+              'string[] | number[] (Naked type parameters distribute across union members)',
+              '(string | number)[]',
+              'never[]',
+              'unknown[]',
             ],
-            correctIndex: 1,
+            correctIndex: 0,
           },
           {
             id: 'q2',
-            question: 'What is the difference between `type` and `interface` regarding declaration merging in TypeScript?',
+            question: `What compile-time error occurs in this TypeScript snippet?
+\`\`\`typescript
+interface Config {
+  [key: string]: string;
+  port: number;
+}
+\`\`\``,
             options: [
-              'Interfaces with the same name automatically merge declarations, while types cannot be redeclared',
-              'Types merge declarations automatically while interfaces throw duplicate identifier errors',
-              'Both merge identical definitions seamlessly',
-              'Neither supports declaration extension',
+              'An index signature property type must be assignable to all other explicit property types (port: number violates string index)',
+              'Interfaces cannot contain numeric properties',
+              'String index signatures cannot be used alongside explicit keys',
+              'TypeScript requires all interface properties to be optional',
             ],
             correctIndex: 0,
           },
           {
             id: 'q3',
-            question: 'Which utility type constructs a type with all properties of T set to optional?',
-            options: ['Required<T>', 'Partial<T>', 'Readonly<T>', 'Record<string, T>'],
-            correctIndex: 1,
+            question: 'Which utility type constructs a type by extracting all properties of type T that are assignable to U?',
+            options: ['Extract<T, U>', 'Omit<T, U>', 'Pick<T, Keys>', 'Exclude<T, U>'],
+            correctIndex: 0,
           },
           {
             id: 'q4',
-            question: 'How do Discriminated Unions enable type narrowing in TypeScript?',
+            question: 'What is the purpose of the `satisfies` operator introduced in TypeScript 4.9?',
             options: [
-              'By utilizing a common literal property present across all variant types',
-              'By casting runtime types with the `any` keyword',
-              'By verifying prototype inheritance chains via instanceof',
-              'By declaring generic constraints with `extends unknown`',
+              'It validates that an expression matches a type contract without widening or losing the specific inferred literal types',
+              'It casts any variable to `any` while silencing ESLint warnings',
+              'It generates runtime type guards in compiled JavaScript',
+              'It creates an immutable frozen copy of an object prototype',
             ],
             correctIndex: 0,
           },
@@ -411,15 +433,187 @@ Output ONLY valid raw JSON with this exact schema (no markdown, no backticks, no
       };
     }
 
-    // Universal high-quality engineering benchmark for any skill
+    // 4. PYTHON ADVANCED ENGINEERING & TRICKY CODE SNIPPETS
+    if (s.includes('python')) {
+      return {
+        title: 'Python Core Mechanics, Memory & Concurrency',
+        questions: [
+          {
+            id: 'q1',
+            question: `What is printed by executing this Python script with default arguments?
+\`\`\`python
+def append_item(val, items=[]):
+    items.append(val)
+    return items
+
+list1 = append_item(10)
+list2 = append_item(20, [])
+list3 = append_item(30)
+print(list1, list3)
+\`\`\``,
+            options: [
+              '[10, 30] [10, 30] (Default arguments are evaluated once at function definition time and shared across invocations)',
+              '[10] [30]',
+              '[10, 20, 30] [10, 20, 30]',
+              'TypeError: Cannot mutate static function parameter list',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q2',
+            question: `Consider this closure with late binding in Python:
+\`\`\`python
+funcs = [lambda: i for i in range(3)]
+print([f() for f in funcs])
+\`\`\`
+What is the resulting output?`,
+            options: [
+              '[2, 2, 2] (Variables in Python closures are looked up when the inner function is called, finding the final loop value of i)',
+              '[0, 1, 2]',
+              '[0, 0, 0]',
+              '[3, 3, 3]',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q3',
+            question: 'Why does Python `a is b` evaluate to True for `a = 256; b = 256`, but False for `a = 257; b = 257` in an interactive shell session?',
+            options: [
+              'CPython pre-allocates and caches an internal singleton array for small integers between -5 and 256',
+              'Integers greater than 256 are converted to 64-bit IEEE floating-point numbers',
+              'The is operator checks mathematical equality only for prime numbers',
+              'Integers above 256 require explicit bitwise hashing before memory allocation',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q4',
+            question: 'What is the operational effect of calling a synchronous, blocking function (like `time.sleep(5)`) inside an `asyncio` coroutine?',
+            options: [
+              'It blocks the single OS thread running the event loop, freezing all concurrent coroutines for 5 seconds',
+              'Python automatically offloads the blocking call to a background OS thread pool',
+              'The event loop yields execution automatically to other async tasks',
+              'An AsyncBlockedWarning exception is raised at runtime',
+            ],
+            correctIndex: 0,
+          },
+        ],
+      };
+    }
+
+    // 5. NODE.JS & ASYNCHRONOUS I/O
+    if (s.includes('node') || s.includes('express') || s.includes('backend')) {
+      return {
+        title: 'Node.js Core Architecture & Asynchronous I/O',
+        questions: [
+          {
+            id: 'q1',
+            question: `What is the exact output sequence of this Node.js script?
+\`\`\`javascript
+console.log('1');
+setTimeout(() => console.log('2'), 0);
+Promise.resolve().then(() => console.log('3'));
+process.nextTick(() => console.log('4'));
+console.log('5');
+\`\`\``,
+            options: [
+              '1, 5, 4, 3, 2 (Synchronous stack finishes, then process.nextTick microtask queue, then Promise microtask queue, then Timer macrotask)',
+              '1, 2, 3, 4, 5',
+              '1, 5, 3, 4, 2',
+              '1, 5, 2, 4, 3',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q2',
+            question: 'What is the primary advantage of utilizing Node.js Streams over fs.readFile when handling large data payloads?',
+            options: [
+              'Streams process chunks sequentially without buffering the entire payload in heap memory, preventing Out-Of-Memory crashes',
+              'Streams compress files automatically using GZIP before transmission',
+              'Streams execute operations in separate worker threads by default',
+              'Streams bypass file system security permissions',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q3',
+            question: 'When `stream.write(chunk)` returns `false`, what should the producing code do to prevent memory bloat?',
+            options: [
+              'Pause writes and wait for the `drain` event before writing further data (handling backpressure)',
+              'Immediately retry writing the chunk in a while loop',
+              'Close the stream connection with stream.destroy()',
+              'Increase V8 max old space size programmatically',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q4',
+            question: 'Which phase of the Node.js event loop executes `setImmediate()` callbacks?',
+            options: ['Check phase', 'Timers phase', 'Poll phase', 'Pending callbacks phase'],
+            correctIndex: 0,
+          },
+        ],
+      };
+    }
+
+    // 6. DATABASES & POSTGRESQL ARCHITECTURE
+    if (s.includes('postgres') || s.includes('sql') || s.includes('database') || s.includes('db')) {
+      return {
+        title: 'PostgreSQL Architecture, Transactions & Indexing',
+        questions: [
+          {
+            id: 'q1',
+            question: `Consider a composite index defined on \`CREATE INDEX idx_users ON users (company_id, created_at, status)\`.
+Which query CANNOT efficiently leverage this index for lookups?`,
+            options: [
+              'SELECT * FROM users WHERE created_at = $1 AND status = $2 (Missing leading column company_id)',
+              'SELECT * FROM users WHERE company_id = $1 AND created_at = $2',
+              'SELECT * FROM users WHERE company_id = $1',
+              'SELECT * FROM users WHERE company_id = $1 ORDER BY created_at ASC',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q2',
+            question: 'How does PostgreSQL implement Multi-Version Concurrency Control (MVCC) without table read locks?',
+            options: [
+              'Updates create new tuple versions with xmin/xmax transaction visibility IDs rather than overwriting rows in-place',
+              'It stores all updates in temporary in-memory Redis buffers',
+              'It locks the entire table schema during every SELECT query',
+              'It converts all queries into sequential single-threaded write operations',
+            ],
+            correctIndex: 0,
+          },
+          {
+            id: 'q3',
+            question: 'What is the phenomenon called when Transaction A queries a row set, Transaction B inserts new rows matching the criteria and commits, and Transaction A sees the new rows upon re-querying in Read Committed mode?',
+            options: ['Phantom Read', 'Dirty Read', 'Lost Update', 'Write Skew'],
+            correctIndex: 0,
+          },
+          {
+            id: 'q4',
+            question: 'Why is `VACUUM` periodic maintenance required in production PostgreSQL databases?',
+            options: [
+              'To reclaim storage occupied by dead tuples generated by UPDATE/DELETE operations and prevent transaction ID wraparound',
+              'To recompile PL/pgSQL stored procedures into native machine code',
+              'To invalidate Redis cache entries and restart database processes',
+              'To encrypt tablespace disks with rotating keys',
+            ],
+            correctIndex: 0,
+          },
+        ],
+      };
+    }
+
+    // Universal high-quality engineering benchmark for any other skill
     return {
       title: `${skillName} Practical Engineering Assessment`,
       questions: [
         {
           id: 'q1',
-          question: `In modern production applications, what is the best practice for managing state and lifecycle events in ${skillName}?`,
+          question: `In production software architecture, what is the best practice for managing state and lifecycle events in ${skillName}?`,
           options: [
-            'Encapsulating pure logic into decoupled, testable modular units',
+            'Encapsulating pure logic into decoupled, testable modular units with verifiable boundaries',
             'Storing mutable state globally across unindexed variables',
             'Suppressing error reporting in production builds',
             'Executing heavy blocking operations synchronously on the main thread',
@@ -430,7 +624,7 @@ Output ONLY valid raw JSON with this exact schema (no markdown, no backticks, no
           id: 'q2',
           question: `What is the recommended approach for optimizing throughput and reducing resource latency when deploying ${skillName}?`,
           options: [
-            'Implementing proactive caching, asynchronous execution, and horizontal scaling',
+            'Implementing proactive caching, asynchronous non-blocking execution, and horizontal scaling',
             'Allocating maximum heap memory without monitoring GC pauses',
             'Disabling connection pooling in relational databases',
             'Increasing request timeout thresholds indefinitely',
@@ -441,7 +635,7 @@ Output ONLY valid raw JSON with this exact schema (no markdown, no backticks, no
           id: 'q3',
           question: `How should unhandled runtime exceptions and network timeouts be handled in ${skillName} services?`,
           options: [
-            'Catching exceptions at boundaries, logging structured telemetry, and gracefully failing or retrying with backoff',
+            'Catching exceptions at boundaries, logging structured telemetry, and gracefully failing or retrying with exponential backoff',
             'Silently swallowing errors to prevent crash logs',
             'Terminating the host server immediately upon every single network timeout',
             'Re-throwing raw exceptions directly to end users without sanitization',

@@ -145,6 +145,39 @@ export const StudentAssessments: React.FC = () => {
     );
   }
 
+  const renderQuestionContent = (text: string) => {
+    if (!text.includes('```')) {
+      return <p className="text-sm font-semibold text-ink leading-snug">{text}</p>;
+    }
+
+    const parts = text.split(/(```[\s\S]*?```)/g);
+    return (
+      <div className="space-y-2 text-sm text-ink leading-snug">
+        {parts.map((part, i) => {
+          if (part.startsWith('```') && part.endsWith('```')) {
+            const lines = part.slice(3, -3).trim().split('\n');
+            const firstLine = lines[0].trim();
+            const isLang = /^[a-z0-9_-]+$/i.test(firstLine);
+            const code = isLang ? lines.slice(1).join('\n') : lines.join('\n');
+            return (
+              <div key={i} className="my-2 rounded-lg bg-slate-900 border border-slate-800 overflow-hidden shadow-inner">
+                <div className="flex items-center justify-between px-3 py-1 bg-slate-800/80 text-[10px] font-mono text-slate-400 border-b border-slate-700/50">
+                  <span>Snippet ({isLang ? firstLine : 'code'})</span>
+                  <span className="text-brand-400 font-bold">Proctored Benchmark</span>
+                </div>
+                <pre className="p-3 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
+                  <code>{code}</code>
+                </pre>
+              </div>
+            );
+          }
+          if (!part.trim()) return null;
+          return <p key={i} className="font-semibold text-ink leading-snug">{part.trim()}</p>;
+        })}
+      </div>
+    );
+  };
+
   // Active Quiz View
   if (activeQuiz) {
     return (
@@ -245,7 +278,7 @@ export const StudentAssessments: React.FC = () => {
                     {qIdx + 1}
                   </span>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-ink leading-snug">{q.question}</p>
+                    {renderQuestionContent(q.question)}
                     <div className="mt-3 space-y-2">
                       {q.options.map((opt, optIdx) => {
                         const isSelected = selectedAnswers[qIdx] === optIdx;
