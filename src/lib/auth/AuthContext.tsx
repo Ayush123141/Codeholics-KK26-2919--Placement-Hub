@@ -311,9 +311,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setCurrentUser(candidateProfile);
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(candidateProfile));
-          // Reset evidence cache for new student registration so evidence registry starts fresh & dynamic
+          // Reset evidence & skill cache for new student registration so registry starts fresh & dynamic
           localStorage.removeItem('proofhire_evidence');
           localStorage.removeItem('proofhire_student_evidence');
+          localStorage.removeItem('proofhire_student_skills');
+          localStorage.removeItem('proofhire_resume_skills');
           localStorage.setItem(`proofhire_student_evidence_${userId}`, JSON.stringify([]));
           setIsLoading(false);
           return { success: true };

@@ -178,6 +178,9 @@ Output ONLY valid raw JSON with this exact schema (no markdown, no backticks, no
 }`;
 
         const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
         const response = await fetch(this.endpoint, {
           method: 'POST',
           headers: {
@@ -191,7 +194,10 @@ Output ONLY valid raw JSON with this exact schema (no markdown, no backticks, no
             messages: [{ role: 'user', content: prompt }],
             temperature: 0.2,
           }),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
@@ -208,7 +214,7 @@ Output ONLY valid raw JSON with this exact schema (no markdown, no backticks, no
           }
         }
       } catch (e) {
-        console.warn('OpenRouter assessment generation fallback notice:', e);
+        // Fallback gracefully on timeout or network error
       }
     }
 

@@ -128,14 +128,14 @@ export const AddEvidenceModal: React.FC<AddEvidenceModalProps> = ({
         title,
         sourceUrl: sourceUrl || undefined,
         issuer: type === 'CERTIFICATE' ? (issuer || 'Authorized Certification Authority') : undefined,
-        status: 'VERIFIED',
+        status: 'NEEDS_REVIEW',
         date: new Date().toISOString().split('T')[0],
         details,
         certificateFileName: certificateFile?.name,
       });
 
       onEvidenceAdded(created);
-      showToast('Artifact evaluated & verified automatically by score engine!', 'success');
+      showToast('Artifact submitted! Take the proctored assessment to verify this skill.', 'success');
       onClose();
 
       // Reset form

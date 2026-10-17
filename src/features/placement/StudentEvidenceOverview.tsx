@@ -211,12 +211,16 @@ export const StudentEvidenceOverview: React.FC = () => {
                     </td>
                     <td className="p-4">
                       <div className="flex flex-wrap gap-1">
-                        {cand.matchedSkills.map((sk) => (
-                          <Badge key={sk} variant="success" size="sm">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-0.5" />
-                            {sk}
-                          </Badge>
-                        ))}
+                        {cand.matchedSkills.length > 0 ? (
+                          cand.matchedSkills.map((sk) => (
+                            <Badge key={sk} variant="success" size="sm">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-0.5" />
+                              {sk}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">Pending verification</span>
+                        )}
                       </div>
                     </td>
                     <td className="p-4">

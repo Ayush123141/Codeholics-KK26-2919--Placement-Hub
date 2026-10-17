@@ -16,6 +16,7 @@ import {
   UserProfile, 
   StudentSkill, 
   EvidenceRecord, 
+  EvidenceStatus,
   StudentProject, 
   StudentEducation, 
   StudentExperience, 
@@ -140,34 +141,80 @@ export const studentApi = {
   },
 
   async getSkills(): Promise<StudentSkill[]> {
-    // 1. Prioritize parsed/stored student skills from uploaded resume
-    try {
-      const stored = localStorage.getItem('proofhire_student_skills');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch {}
-
-    if (isSupabaseConfigured && supabase) {
+    // 1. Gather all candidate skills from resume or database
+    let baseSkills: string[] = this.getResumeSkills();
+    if (baseSkills.length === 0) {
       try {
-        const { data: dbSkills } = await supabase.from('skills').select('*').limit(30);
-        if (dbSkills && dbSkills.length > 0) {
-          return dbSkills.map((s, idx) => ({
-            id: s.id,
-            canonicalName: s.canonical_name,
-            category: s.category || 'General',
-            proficiencyLevel: idx % 2 === 0 ? 'Advanced' : 'Intermediate',
-            evidenceCount: 2,
-            status: 'VERIFIED',
-            evidenceIds: [],
-          }));
+        const stored = localStorage.getItem('proofhire_student_skills');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            baseSkills = parsed.map((s: any) => s.canonicalName || s.name || '').filter(Boolean);
+          }
         }
       } catch {}
     }
-    return localSkills;
+
+    if (baseSkills.length === 0 && isSupabaseConfigured && supabase) {
+      try {
+        const { data: dbSkills } = await supabase.from('skills').select('canonical_name').limit(15);
+        if (dbSkills && dbSkills.length > 0) {
+          baseSkills = dbSkills.map((s) => s.canonical_name).filter(Boolean);
+        }
+      } catch {}
+    }
+
+    if (baseSkills.length === 0) {
+      baseSkills = ['React', 'TypeScript', 'Node.js', 'Python', 'PostgreSQL', 'Docker'];
+    }
+
+    const uniqueSkillNames = Array.from(new Set(baseSkills.map((s) => s.trim()).filter(Boolean)));
+
+    // 2. Fetch student's actual evidence records to deterministically compute verified vs pending status
+    const studentEvidence = await this.getEvidence();
+    const verifiedSkillNames = new Set(
+      studentEvidence
+        .filter((e) => e.status === 'VERIFIED')
+        .map((e) => e.skillName.toLowerCase())
+    );
+    const pendingSkillNames = new Set(
+      studentEvidence
+        .filter((e) => e.status !== 'VERIFIED')
+        .map((e) => e.skillName.toLowerCase())
+    );
+
+    // 3. Map status and counts deterministically
+    const synchronizedSkills: StudentSkill[] = uniqueSkillNames.map((name, idx) => {
+      const nameLower = name.toLowerCase();
+      const matchedEv = studentEvidence.filter((e) => e.skillName.toLowerCase() === nameLower);
+      const evidenceCount = matchedEv.length;
+
+      let status: EvidenceStatus = 'NO_EVIDENCE';
+      if (verifiedSkillNames.has(nameLower)) {
+        status = 'VERIFIED';
+      } else if (pendingSkillNames.has(nameLower) || evidenceCount > 0) {
+        status = 'NEEDS_REVIEW';
+      } else {
+        status = 'NO_EVIDENCE';
+      }
+
+      return {
+        id: `skill-${nameLower.replace(/[^a-z0-9]/g, '-')}`,
+        canonicalName: name,
+        category: idx < 2 ? 'Frontend Engineering' : idx < 4 ? 'Languages & Systems' : 'Databases & DevOps',
+        proficiencyLevel: idx % 2 === 0 ? 'Advanced' : 'Intermediate',
+        evidenceCount,
+        status,
+        evidenceIds: matchedEv.map((e) => e.id),
+      };
+    });
+
+    localSkills = synchronizedSkills;
+    try {
+      localStorage.setItem('proofhire_student_skills', JSON.stringify(synchronizedSkills));
+    } catch {}
+
+    return synchronizedSkills;
   },
 
   getResumeSkills(): string[] {
@@ -218,7 +265,7 @@ export const studentApi = {
                 skillName: meta.skillName || (e.title ? e.title.split(' ')[0] : 'Technical Skill'),
                 type,
                 title: e.title,
-                status: isVerified ? 'VERIFIED' : (e.status || 'VERIFIED'),
+                status: isVerified ? 'VERIFIED' : (e.status === 'UNVERIFIED' ? 'UNVERIFIED' : 'NEEDS_REVIEW'),
                 score: typeof e.score === 'number' ? `${e.score}%` : (e.score || '92%'),
                 date: new Date(e.created_at).toLocaleDateString(),
                 details: e.description || '',
@@ -289,11 +336,16 @@ export const studentApi = {
       } : undefined,
     });
 
+    const isAssessmentVerified = newEvidence.status === 'VERIFIED' && newEvidence.type === 'ASSESSMENT';
+    const finalStatus: EvidenceStatus = isAssessmentVerified ? 'VERIFIED' : 'NEEDS_REVIEW';
+    const dbStatus = isAssessmentVerified ? 'ISSUER_VERIFIED' : 'NEEDS_REVIEW';
+    const verifiedAt = isAssessmentVerified ? new Date().toISOString() : null;
+
     const created: EvidenceRecord = {
       ...newEvidence,
       id: createdId,
       studentId: currentUserId,
-      status: 'VERIFIED',
+      status: finalStatus,
       score: evaluation.score,
       verifier: evaluation.verifier,
       issuer: evaluation.issuer || newEvidence.issuer,
@@ -316,7 +368,7 @@ export const studentApi = {
               student_id: effectiveStudentId,
               title: newEvidence.title,
               type: dbType,
-              status: 'ISSUER_VERIFIED',
+              status: dbStatus,
               score: evaluation.numericScore,
               source_url: newEvidence.sourceUrl || null,
               description: newEvidence.details,
@@ -330,7 +382,7 @@ export const studentApi = {
                 repoFiles: evaluation.repoFiles,
                 certificateFileName: evaluation.certificateFileName || newEvidence.certificateFileName,
               },
-              verified_at: new Date().toISOString(),
+              verified_at: verifiedAt,
             })
             .select()
             .maybeSingle();
@@ -364,9 +416,10 @@ export const studentApi = {
       const skillLower = newEvidence.skillName.toLowerCase();
       localSkills = localSkills.map((sk) => {
         if (sk.canonicalName.toLowerCase() === skillLower) {
+          const nextStatus = isAssessmentVerified ? 'VERIFIED' : (sk.status === 'VERIFIED' ? 'VERIFIED' : 'NEEDS_REVIEW');
           return {
             ...sk,
-            status: 'VERIFIED',
+            status: nextStatus,
             evidenceCount: (sk.evidenceCount || 0) + 1,
             evidenceIds: Array.from(new Set([...(sk.evidenceIds || []), created.id])),
           };
@@ -795,29 +848,44 @@ export const studentApi = {
     const cleanSkills = Array.from(new Set(resumeSkills.map((s) => s.trim()).filter(Boolean)));
     const targetSkills = cleanSkills.length > 0 ? cleanSkills.slice(0, 5) : ['React', 'TypeScript', 'Node.js', 'Python'];
 
-    const assessments: AssessmentItem[] = [];
+    // 2. Fetch assessments in parallel with local caching for instant load
+    const benchmarkPromises = targetSkills.map(async (skillName) => {
+      const cacheKey = `proofhire_quiz_cache_${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.questions && Array.isArray(parsed.questions) && parsed.questions.length >= 3) {
+            return { skillName, benchmark: parsed };
+          }
+        }
+      } catch {}
 
-    for (let idx = 0; idx < targetSkills.length; idx++) {
-      const skillName = targetSkills[idx];
       const benchmark = await llmAssistService.generateSkillAssessmentWithLLM(skillName);
-      assessments.push({
-        id: `assess-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-v1`,
-        skillId: `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-        title: benchmark.title || `${skillName} Core Technical Assessment`,
-        version: '1.0',
-        durationMinutes: 15,
-        instructions: `Answer all 4 questions objectively. Minimum passing score is 70%. Answers verify your competency for ${skillName} into the evidence ledger.`,
-        questionCount: benchmark.questions.length,
-        questions: benchmark.questions.map((q) => ({
-          id: q.id,
-          question: q.question,
-          options: q.options,
-          correctIndex: q.correctIndex,
-        })),
-      });
-    }
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(benchmark));
+      } catch {}
 
-    return assessments;
+      return { skillName, benchmark };
+    });
+
+    const results = await Promise.all(benchmarkPromises);
+
+    return results.map(({ skillName, benchmark }) => ({
+      id: `assess-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-v1`,
+      skillId: `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+      title: benchmark.title || `${skillName} Core Technical Assessment`,
+      version: '1.0',
+      durationMinutes: 15,
+      instructions: `Answer all 4 questions objectively. Minimum passing score is 70%. Answers verify your competency for ${skillName} into the evidence ledger.`,
+      questionCount: benchmark.questions.length,
+      questions: benchmark.questions.map((q: any) => ({
+        id: q.id,
+        question: q.question,
+        options: q.options,
+        correctIndex: q.correctIndex,
+      })),
+    }));
   },
 
   async submitAssessment(
@@ -856,6 +924,53 @@ export const studentApi = {
         sourceUrl: undefined,
         issuer: 'ProofHire Automated Assessment Engine v1.2',
       });
+
+      // Update any existing pending evidence for this skill in Supabase to ISSUER_VERIFIED
+      if (isSupabaseConfigured && supabase) {
+        try {
+          await supabase
+            .from('evidence_records')
+            .update({
+              status: 'ISSUER_VERIFIED',
+              verified_at: new Date().toISOString(),
+            })
+            .eq('student_id', studentId)
+            .ilike('title', `%${skillName}%`);
+        } catch (e) {
+          console.warn('Supabase verify evidence update notice:', e);
+        }
+      }
+
+      // Update student's local evidence cache for this skill to VERIFIED
+      try {
+        const storageKey = `proofhire_student_evidence_${studentId}`;
+        const raw = localStorage.getItem(storageKey);
+        if (raw) {
+          const list: EvidenceRecord[] = JSON.parse(raw);
+          const updated = list.map((ev) => {
+            if (ev.skillName.toLowerCase() === skillName.toLowerCase()) {
+              return { ...ev, status: 'VERIFIED' as EvidenceStatus };
+            }
+            return ev;
+          });
+          localStorage.setItem(storageKey, JSON.stringify(updated));
+        }
+      } catch {}
+
+      // Update tracked skills to VERIFIED
+      localSkills = localSkills.map((sk) => {
+        if (sk.canonicalName.toLowerCase() === skillName.toLowerCase()) {
+          return {
+            ...sk,
+            status: 'VERIFIED' as EvidenceStatus,
+            evidenceCount: (sk.evidenceCount || 0) + 1,
+          };
+        }
+        return sk;
+      });
+      try {
+        localStorage.setItem('proofhire_student_skills', JSON.stringify(localSkills));
+      } catch {}
     }
 
     const attempt: AssessmentAttemptResult = {

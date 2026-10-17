@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShieldCheck, 
   Plus, 
@@ -10,7 +11,8 @@ import {
   BookOpen, 
   CheckCircle2,
   AlertCircle,
-  Clock
+  Clock,
+  ArrowRight
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -25,6 +27,7 @@ import { studentApi } from '@/lib/api/studentApi';
 import { EvidenceRecord, EvidenceType, EvidenceStatus } from '@/types';
 
 export const StudentEvidence: React.FC = () => {
+  const navigate = useNavigate();
   const [evidenceList, setEvidenceList] = useState<EvidenceRecord[]>([]);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceRecord | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -197,6 +200,26 @@ export const StudentEvidence: React.FC = () => {
                   </span>
                 )}
               </div>
+
+              {/* Action Banner for unverified evidence */}
+              {ev.status === 'NEEDS_REVIEW' && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/student/assessments');
+                  }}
+                  className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200 hover:bg-amber-100/70 transition-colors flex items-center justify-between text-xs text-amber-900 group/btn"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span className="text-[11px] font-semibold">Take skill assessment to verify</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-700 flex items-center gap-1 group-hover/btn:translate-x-0.5 transition-transform">
+                    <span>Assess Now</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </span>
+                </div>
+              )}
 
               {/* Card Footer: Date and Inspect Details Action */}
               <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
