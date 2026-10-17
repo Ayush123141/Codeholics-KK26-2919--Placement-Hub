@@ -256,13 +256,24 @@ export const StudentDashboard: React.FC = () => {
                         <span>Target: <strong>{camp.targetHires} Hires</strong></span>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => navigate('/student/jobs')}
-                      className="text-xs self-start sm:self-auto shrink-0 font-semibold"
-                    >
-                      View & Apply
-                    </Button>
+                    <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/student/resume-studio?jobId=${camp.jobId || camp.id}&role=${encodeURIComponent(camp.jobTitle)}&company=${encodeURIComponent(camp.companyName)}`)}
+                        className="text-xs font-semibold gap-1 text-brand-700 border-brand-300 hover:bg-brand-50"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Tailor Resume</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => navigate('/student/jobs')}
+                        className="text-xs font-semibold"
+                      >
+                        Review & Apply
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </CardContent>

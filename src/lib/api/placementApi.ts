@@ -241,9 +241,68 @@ export const placementApi = {
           const dbResults: MatchingResult[] = dbApps.map((a: any, idx: number) => {
             const profile = a.profiles || {};
             const studentEv = evidenceByStudent[a.student_id] || [];
+
+            // Extract candidate's verified skills dynamically from their evidence_records in Supabase
+            const verifiedSkills: string[] = [];
+            const partialSkills: string[] = [];
+
+            studentEv.forEach((ev: any) => {
+              const skillName = ev.metadata?.skillName || (ev.title ? ev.title.split(' ')[0] : 'Technical Skill');
+              const isVerified = ev.status === 'ISSUER_VERIFIED' || ev.status === 'VERIFIED';
+              if (isVerified) {
+                if (!verifiedSkills.some(vs => vs.toLowerCase() === skillName.toLowerCase())) {
+                  verifiedSkills.push(skillName);
+                }
+              } else {
+                if (!partialSkills.some(ps => ps.toLowerCase() === skillName.toLowerCase()) &&
+                    !verifiedSkills.some(vs => vs.toLowerCase() === skillName.toLowerCase())) {
+                  partialSkills.push(skillName);
+                }
+              }
+            });
+
+            // Target job skills from job title or description
+            const targetTitle = (a.jobs?.title || '').toLowerCase();
+            const defaultJobSkills = targetTitle.includes('frontend')
+              ? ['React', 'TypeScript', 'Tailwind CSS', 'REST API']
+              : targetTitle.includes('full')
+              ? ['React', 'Node.js', 'PostgreSQL', 'TypeScript']
+              : targetTitle.includes('data')
+              ? ['Python', 'SQL', 'PostgreSQL']
+              : ['React', 'Node.js', 'TypeScript', 'PostgreSQL'];
+
+            // Calculate matches dynamically against required job skills
+            const matchedSkills: string[] = [];
+            defaultJobSkills.forEach((djs) => {
+              if (verifiedSkills.some((vs) => vs.toLowerCase() === djs.toLowerCase())) {
+                matchedSkills.push(djs);
+              }
+            });
+            // Also append any extra verified skills held by candidate
+            verifiedSkills.forEach((vs) => {
+              if (!matchedSkills.some((ms) => ms.toLowerCase() === vs.toLowerCase())) {
+                matchedSkills.push(vs);
+              }
+            });
+
+            const partialEvidenceSkills: string[] = [];
+            partialSkills.forEach((ps) => {
+              if (!matchedSkills.some((ms) => ms.toLowerCase() === ps.toLowerCase())) {
+                partialEvidenceSkills.push(ps);
+              }
+            });
+
+            const noEvidenceSkills = defaultJobSkills.filter(
+              (djs) => !matchedSkills.some((ms) => ms.toLowerCase() === djs.toLowerCase()) &&
+                       !partialEvidenceSkills.some((ps) => ps.toLowerCase() === djs.toLowerCase())
+            );
+
+            // Dynamic fit score: based on verified evidence count, average assessment/audit score, and skill coverage
+            const coverageRatio = defaultJobSkills.length > 0 ? (matchedSkills.length / defaultJobSkills.length) : 0.5;
             const avgScore = studentEv.length > 0
-              ? Math.round(studentEv.reduce((acc, curr) => acc + (Number(curr.score) || 85), 0) / studentEv.length)
-              : 88;
+              ? Math.round(studentEv.reduce((acc: number, curr: any) => acc + (Number(curr.score) || 85), 0) / studentEv.length)
+              : 65;
+            const dynamicFitScore = Math.min(98, Math.max(45, Math.round(avgScore * 0.6 + Math.min(1, coverageRatio) * 40)));
 
             const isShortlisted = ['SHORTLISTED', 'ASSESSMENT', 'INTERVIEW', 'OFFERED', 'OFFER', 'TECHNICAL_ASSESSMENT'].includes(a.current_stage);
 
@@ -252,33 +311,25 @@ export const placementApi = {
               studentName: profile.full_name || 'Candidate ' + (idx + 1),
               studentEmail: profile.email || `candidate${idx + 1}@techsummit.edu`,
               department: profile.department || 'Computer Science',
-              cgpa: 8.85,
-              fitScore: Math.min(96, Math.max(78, avgScore + 4)),
+              cgpa: profile.cgpa || 8.85,
+              fitScore: dynamicFitScore,
               assessmentScore: avgScore,
               isShortlisted,
-              matchedSkills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],
-              partialEvidenceSkills: ['Docker'],
-              noEvidenceSkills: [],
+              matchedSkills,
+              partialEvidenceSkills,
+              noEvidenceSkills,
               preferredGaps: [],
               policyVersion: 'v1.0-deterministic-80-20',
-              explanation: `Deterministic 80/20 Match: Candidate applied for ${a.jobs?.title || 'Engineering Role'} with ${studentEv.length || 2} verified evidence records. Core competencies confirmed.`,
+              explanation: `Deterministic 80/20 Match: Candidate applied for ${a.jobs?.title || 'Engineering Role'} with ${studentEv.length} verified evidence record(s). ${matchedSkills.length} competencies demonstrated.`,
               evidenceRefs: studentEv.map(e => e.id),
             };
-
           });
-
-          // Merge with localRanking
-          const dbStudentIds = new Set(dbResults.map(r => r.studentId));
-          const merged = [
-            ...dbResults,
-            ...localRanking.filter(r => !dbStudentIds.has(r.studentId)),
-          ];
 
           return {
             policyVersion: 'v1.0-deterministic-80-20',
             jobId,
             campaignId,
-            results: merged,
+            results: dbResults,
           };
         }
       } catch (e) {

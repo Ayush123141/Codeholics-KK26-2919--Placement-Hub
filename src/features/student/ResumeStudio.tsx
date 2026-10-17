@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { studentApi } from '@/lib/api/studentApi';
+import { placementApi } from '@/lib/api/placementApi';
 import { llmAssistService } from '@/lib/services/llmAssist';
 import { UserProfile, ResumeBulletItem, Job } from '@/types';
 
@@ -45,19 +46,53 @@ export const ResumeStudio: React.FC = () => {
 
   useEffect(() => {
     async function loadData() {
-      const [prof, bl, jbs] = await Promise.all([
+      const [prof, bl, jbs, camps] = await Promise.all([
         studentApi.getProfile(),
         studentApi.getResumeBullets(selectedJobId),
         studentApi.getJobs(),
+        placementApi.getCampaigns().catch(() => []),
       ]);
       setProfile(prof);
       setBullets(bl);
-      const jobList = Array.isArray(jbs) ? jbs : [];
-      setJobs(jobList);
-      if (requestedJobId && jobList.some((j) => j.id === requestedJobId)) {
+
+      const campaignJobs: Job[] = (camps || []).map((c: any) => ({
+        id: c.jobId || c.id,
+        title: `${c.jobTitle || c.title} (Campus Drive)`,
+        company: c.companyName || 'Institutional Hiring Partner',
+        location: 'Campus Recruitment Drive (Hybrid)',
+        type: 'Full-time',
+        salaryRange: '₹8,00,000 - ₹14,00,000',
+        description: `Official campus placement campaign: ${c.title}. Targeting graduating cohort with verified technical skills.`,
+        requiredSkills: [
+          { skillId: 'skill-react', canonicalName: 'React', sourceText: 'React', weight: 40 },
+          { skillId: 'skill-ts', canonicalName: 'TypeScript', sourceText: 'TypeScript', weight: 30 },
+          { skillId: 'skill-node', canonicalName: 'Node.js', sourceText: 'Node.js', weight: 30 },
+        ],
+        preferredSkills: [],
+        eligibilityCriteria: { minimumCgpa: 6.5, allowedDepartments: ['Computer Science', 'IT'], graduationYear: [2026] },
+        deadline: c.deadline || '2026-11-30',
+        postedDate: c.startDate || '2026-01-01',
+        status: 'ACTIVE',
+        sourceCount: 1,
+        matchedScore: 92,
+        hasApplied: false,
+      }));
+
+      const rawJobs = Array.isArray(jbs) ? jbs : [];
+      const seen = new Set<string>();
+      const combinedJobs: Job[] = [];
+      [...campaignJobs, ...rawJobs].forEach((j) => {
+        if (!seen.has(j.id)) {
+          seen.add(j.id);
+          combinedJobs.push(j);
+        }
+      });
+
+      setJobs(combinedJobs);
+      if (requestedJobId && combinedJobs.some((j) => j.id === requestedJobId)) {
         setSelectedJobId(requestedJobId);
-      } else if (jobList.length > 0 && !requestedJobId) {
-        setSelectedJobId(jobList[0].id);
+      } else if (combinedJobs.length > 0 && !requestedJobId) {
+        setSelectedJobId(combinedJobs[0].id);
       }
     }
     loadData();

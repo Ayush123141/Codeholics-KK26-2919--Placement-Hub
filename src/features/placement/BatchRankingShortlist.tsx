@@ -304,6 +304,9 @@ export const BatchRankingShortlist: React.FC = () => {
                           {sk} (Review Pending)
                         </Badge>
                       ))}
+                      {cand.matchedSkills.length === 0 && cand.partialEvidenceSkills.length === 0 && (
+                        <span className="text-[11px] text-slate-400 italic">No verified skills yet</span>
+                      )}
                     </div>
                   </td>
 

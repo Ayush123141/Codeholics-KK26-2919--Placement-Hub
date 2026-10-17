@@ -12,15 +12,21 @@ import {
   RotateCcw,
   Sparkles
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { studentApi } from '@/lib/api/studentApi';
 import { AssessmentItem, AssessmentAttemptResult } from '@/types';
 
 export const StudentAssessments: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { showToast } = useToast();
+  const studentId = user?.id || 'anonymous-student';
+
   const [assessments, setAssessments] = useState<AssessmentItem[]>([]);
   const [attempts, setAttempts] = useState<AssessmentAttemptResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,8 +37,6 @@ export const StudentAssessments: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quizResult, setQuizResult] = useState<{ attempt: AssessmentAttemptResult; message: string; evidence?: any } | null>(null);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(0);
-
-  const studentId = 'student-demo-001';
 
   useEffect(() => {
     async function loadData() {
@@ -94,14 +98,14 @@ export const StudentAssessments: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const res = await studentApi.submitAssessment(studentId, activeQuiz.id, answersArray);
+      const res = await studentApi.submitAssessment(studentId, activeQuiz.id, answersArray, activeQuiz);
       setQuizResult(res);
       setAttempts((prev) => [res.attempt, ...prev]);
 
       if (res.attempt.passed) {
-        showToast('Assessment passed! Verifiable evidence registered.', 'success');
+        showToast(`Assessment passed (${res.attempt.score}%)! Evidence verified and recorded in your registry.`, 'success');
       } else {
-        showToast('Assessment completed. Passing score is 70%.', 'info');
+        showToast(`Assessment completed (${res.attempt.score}%). 70% required to verify skill evidence.`, 'info');
       }
     } catch {
       // Deterministic client fallback score calculation if offline
@@ -198,11 +202,20 @@ export const StudentAssessments: React.FC = () => {
             </div>
 
             {quizResult.attempt.passed && (
-              <div className="p-3 bg-fresh/10 border border-emerald-300 rounded-[10px] text-xs text-emerald-900 flex items-center gap-2 text-left">
-                <ShieldCheck className="w-4 h-4 shrink-0 text-fresh" />
-                <span>
-                  Verifiable evidence artifact registered with policy version <strong>v1</strong>. Available to matching engine and Truthful Resume Studio.
-                </span>
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 shrink-0 text-emerald-600" />
+                  <span>
+                    Verifiable evidence artifact registered into your ledger! Available to institutional batch ranking engine.
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => navigate('/student/evidence')}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs shrink-0 font-semibold"
+                >
+                  View in Evidence Registry →
+                </Button>
               </div>
             )}
 

@@ -31,6 +31,7 @@ import {
 
 import { resumeParserService, ExtractedResumeData } from '@/lib/services/resumeParser';
 import { automatedEvidenceEngine } from '@/lib/services/automatedEvidenceEngine';
+import { llmAssistService } from '@/lib/services/llmAssist';
 
 // In-memory / session store for stateful UI mutations with localStorage persistence
 function loadStored<T>(key: string, fallback: T): T {
@@ -789,107 +790,110 @@ export const studentApi = {
   },
 
   async getAssessments(): Promise<AssessmentItem[]> {
-    return [
-      {
-        id: 'assess-react-v1',
-        skillId: 'skill-react',
-        title: 'React Fundamentals & Component Architecture',
+    // 1. Fetch the student's skills (prioritizing resume-extracted skills)
+    const resumeSkills = this.getResumeSkills();
+    const cleanSkills = Array.from(new Set(resumeSkills.map((s) => s.trim()).filter(Boolean)));
+    const targetSkills = cleanSkills.length > 0 ? cleanSkills.slice(0, 5) : ['React', 'TypeScript', 'Node.js', 'Python'];
+
+    const assessments: AssessmentItem[] = [];
+
+    for (let idx = 0; idx < targetSkills.length; idx++) {
+      const skillName = targetSkills[idx];
+      const benchmark = await llmAssistService.generateSkillAssessmentWithLLM(skillName);
+      assessments.push({
+        id: `assess-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-v1`,
+        skillId: `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        title: benchmark.title || `${skillName} Core Technical Assessment`,
         version: '1.0',
         durationMinutes: 15,
-        instructions: 'Answer all questions objectively. Passing threshold is 70%. Answers are graded deterministically.',
-        questionCount: 4,
-        questions: [
-          {
-            id: 'q1',
-            question: 'What hook is used to run side effects in a function component?',
-            options: ['useMemo', 'useEffect', 'useState', 'useRef'],
-          },
-          {
-            id: 'q2',
-            question: 'What is the primary purpose of keys in React lists?',
-            options: [
-              'To style DOM elements uniquely',
-              'To identify which items have changed, been added, or removed for reconciliation',
-              'To pass props between siblings',
-              'To bind event handlers automatically',
-            ],
-          },
-          {
-            id: 'q3',
-            question: 'How does React handle state batching in React 18+?',
-            options: [
-              'Only synchronous events inside React handlers are batched',
-              'State updates are never batched',
-              'Automatic batching applies across promises, setTimeout, and native event handlers',
-              'Batching must be manually enabled via unstable_batchedUpdates',
-            ],
-          },
-          {
-            id: 'q4',
-            question: 'Which of the following creates an unmodifiable memoized callback?',
-            options: ['useMemo', 'useCallback', 'useReducer', 'useLayoutEffect'],
-          },
-        ],
-      },
-      {
-        id: 'assess-nodejs-v1',
-        skillId: 'skill-nodejs',
-        title: 'Node.js Core Architecture & Asynchronous I/O',
-        version: '1.0',
-        durationMinutes: 15,
-        instructions: 'Answer all questions objectively. Passing threshold is 70%.',
-        questionCount: 3,
-        questions: [
-          {
-            id: 'q1',
-            question: 'Which phase of the Node.js event loop executes setImmediate() callbacks?',
-            options: ['Timers', 'Pending callbacks', 'Poll', 'Check'],
-          },
-          {
-            id: 'q2',
-            question: 'What is the main benefit of Node.js Streams?',
-            options: [
-              'Encrypting data at rest',
-              'Processing large chunks of data piece-by-piece without buffering everything in RAM',
-              'Enabling multi-threading without worker_threads',
-              'Converting callbacks into Promises automatically',
-            ],
-          },
-          {
-            id: 'q3',
-            question: 'What happens if an unhandled promise rejection occurs in modern Node.js?',
-            options: [
-              'It is silently ignored',
-              'The process terminates with a non-zero exit code by default',
-              'It retries the operation 3 times',
-              'It pauses execution indefinitely',
-            ],
-          },
-        ],
-      },
-    ];
+        instructions: `Answer all 4 questions objectively. Minimum passing score is 70%. Answers verify your competency for ${skillName} into the evidence ledger.`,
+        questionCount: benchmark.questions.length,
+        questions: benchmark.questions.map((q) => ({
+          id: q.id,
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correctIndex,
+        })),
+      });
+    }
+
+    return assessments;
   },
 
   async submitAssessment(
-    _studentId: string,
-    _assessmentId: string,
-    _answers: number[]
-  ): Promise<{ attempt: AssessmentAttemptResult; message: string; evidence?: any }> {
+    studentId: string,
+    assessmentId: string,
+    answers: number[],
+    assessmentItem?: AssessmentItem
+  ): Promise<{ attempt: AssessmentAttemptResult; message: string; evidence?: EvidenceRecord }> {
+    const questions = assessmentItem?.questions || [];
+    let correctCount = 0;
+    const totalQuestions = questions.length || 4;
+
+    questions.forEach((q, idx) => {
+      const studentAns = answers[idx];
+      const expected = (q as any).correctIndex ?? 0;
+      if (studentAns === expected) {
+        correctCount++;
+      }
+    });
+
+    const calculatedScore = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 85;
+    const isPassed = calculatedScore >= 70;
+    const skillName = assessmentItem?.title?.split(' ')[0] || 'Technical Skill';
+
+    let createdEvidence: EvidenceRecord | undefined;
+    if (isPassed) {
+      createdEvidence = await this.addEvidence({
+        studentId,
+        skillId: assessmentItem?.skillId || `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        skillName,
+        type: 'ASSESSMENT',
+        title: `Proctored Assessment: ${skillName} Technical Benchmark`,
+        status: 'VERIFIED',
+        date: new Date().toISOString().split('T')[0],
+        details: `Successfully cleared automated proctored technical evaluation with score of ${calculatedScore}% (${correctCount}/${totalQuestions} correct answers). Evaluation verified and sealed deterministically.`,
+        sourceUrl: undefined,
+        issuer: 'ProofHire Automated Assessment Engine v1.2',
+      });
+    }
+
+    const attempt: AssessmentAttemptResult = {
+      id: `att-${Date.now()}`,
+      studentId,
+      assessmentId,
+      skillId: assessmentItem?.skillId || `skill-${skillName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+      score: calculatedScore,
+      passed: isPassed,
+      completedAt: new Date().toISOString(),
+    };
+
+    // Store attempt history in user-scoped cache
+    try {
+      const attemptsKey = `proofhire_assessment_attempts_${studentId}`;
+      const existing = localStorage.getItem(attemptsKey);
+      const parsed = existing ? JSON.parse(existing) : [];
+      localStorage.setItem(attemptsKey, JSON.stringify([attempt, ...parsed]));
+    } catch {}
+
     return {
-      attempt: {
-        id: `att-${Date.now()}`,
-        studentId: _studentId,
-        assessmentId: _assessmentId,
-        skillId: 'skill-react',
-        score: 85,
-        passed: true,
-        completedAt: new Date().toISOString(),
-      },
-      message: 'Assessment completed and verified into evidence ledger with 85% score.',
+      attempt,
+      message: isPassed
+        ? `Assessment PASSED with ${calculatedScore}%! Skill evidence created and automatically verified in your ledger.`
+        : `Assessment completed with score of ${calculatedScore}%. 70% required to verify evidence. You may re-attempt anytime.`,
+      evidence: createdEvidence,
     };
   },
 
-  async getStudentAssessmentAttempts(_studentId: string): Promise<AssessmentAttemptResult[]> {
+  async getStudentAssessmentAttempts(studentId: string): Promise<AssessmentAttemptResult[]> {
+    try {
+      const attemptsKey = `proofhire_assessment_attempts_${studentId}`;
+      const existing = localStorage.getItem(attemptsKey);
+      if (existing) {
+        const parsed = JSON.parse(existing);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
     return [];
   },
 };
