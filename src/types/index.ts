@@ -45,6 +45,17 @@ export interface EvidenceRecord {
   details: string;
   evidenceRefs?: string[];
   repoFiles?: { path: string; language: string; lineRange?: string }[];
+  certificateFileName?: string;
+  credibilityScore?: number;
+  authenticityRating?: string;
+  auditMetrics?: {
+    codeQuality?: number;
+    commitDensity?: number;
+    testCoverage?: number;
+    architectureScore?: number;
+    issuerTrustScore?: number;
+    authenticityCheck?: string;
+  };
 }
 
 export interface StudentSkill {

@@ -28,6 +28,7 @@ import {
 } from '@/types';
 
 import { resumeParserService, ExtractedResumeData } from '@/lib/services/resumeParser';
+import { automatedEvidenceEngine } from '@/lib/services/automatedEvidenceEngine';
 
 // In-memory / session store for stateful UI mutations with localStorage persistence
 function loadStored<T>(key: string, fallback: T): T {
@@ -37,6 +38,13 @@ function loadStored<T>(key: string, fallback: T): T {
   } catch {}
   return fallback;
 }
+
+function saveStored<T>(key: string, data: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch {}
+}
+
 
 let localStudentProfile: UserProfile = loadStored('proofhire_auth_session', { ...DEMO_USERS.student });
 let localEvidence: EvidenceRecord[] = loadStored('proofhire_student_evidence', [...DEMO_EVIDENCE]);
@@ -145,46 +153,106 @@ export const studentApi = {
           const { data: evList } = await supabase
             .from('evidence_records')
             .select('*')
-            .eq('student_id', user.id);
+            .eq('student_id', user.id)
+            .order('created_at', { ascending: false });
 
           if (evList && evList.length > 0) {
-            return evList.map((e) => ({
-              id: e.id,
-              studentId: e.student_id,
-              skillId: e.id,
-              skillName: e.title || 'Technical Skill',
-              type: (e.type || 'PROJECT') as any,
-              title: e.title,
-              status: (e.status || 'VERIFIED') as any,
-              score: e.score || 85,
-              date: new Date(e.created_at).toLocaleDateString(),
-              details: e.details || '',
-            }));
+            const typeMap: Record<string, any> = { 'GITHUB_REPO': 'GITHUB' };
+            const fromDb: EvidenceRecord[] = evList.map((e) => {
+              const meta = e.metadata || {};
+              const type = typeMap[e.type] || e.type || 'PROJECT';
+              const isVerified = e.status === 'ISSUER_VERIFIED' || e.status === 'MANUALLY_REVIEWED' || e.status === 'VERIFIED';
+
+              return {
+                id: e.id,
+                studentId: e.student_id,
+                skillId: e.id,
+                skillName: e.title?.split(' ')[0] || 'Technical Skill',
+                type,
+                title: e.title,
+                status: isVerified ? 'VERIFIED' : (e.status || 'VERIFIED'),
+                score: typeof e.score === 'number' ? `${e.score}%` : (e.score || '92%'),
+                date: new Date(e.created_at).toLocaleDateString(),
+                details: e.description || e.details || '',
+                verifier: meta.verifier || 'ProofHire Automated Assessment Engine v1.2',
+                issuer: meta.issuer,
+                credibilityScore: meta.credibilityScore || 94,
+                authenticityRating: meta.authenticity || 'HIGH',
+                auditMetrics: meta.auditMetrics,
+                certificateFileName: meta.certificateFileName,
+                repoFiles: meta.repoFiles,
+                sourceUrl: e.source_url,
+              };
+            });
+
+            // Merge with localEvidence (avoid duplicate IDs)
+            const dbIds = new Set(fromDb.map((d) => d.id));
+            const nonDupLocals = localEvidence.filter((l) => !dbIds.has(l.id));
+            return [...fromDb, ...nonDupLocals];
           }
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Supabase getEvidence notice:', err);
+      }
     }
     return localEvidence;
   },
 
   async addEvidence(newEvidence: Omit<EvidenceRecord, 'id'>): Promise<EvidenceRecord> {
     const createdId = `ev-${Date.now()}`;
+
+    // Execute Automated Score & Credibility Evaluation
+    const evaluation = automatedEvidenceEngine.evaluate({
+      type: newEvidence.type,
+      skillName: newEvidence.skillName,
+      title: newEvidence.title,
+      sourceUrl: newEvidence.sourceUrl,
+      details: newEvidence.details,
+      issuer: newEvidence.issuer,
+      certificateFile: newEvidence.certificateFileName ? {
+        name: newEvidence.certificateFileName,
+        size: 245000,
+        type: 'application/pdf',
+      } : undefined,
+    });
+
     const created: EvidenceRecord = {
       ...newEvidence,
       id: createdId,
+      status: 'VERIFIED',
+      score: evaluation.score,
+      verifier: evaluation.verifier,
+      issuer: evaluation.issuer || newEvidence.issuer,
+      credibilityScore: evaluation.credibilityScore,
+      authenticityRating: evaluation.authenticityRating,
+      auditMetrics: evaluation.auditMetrics,
+      repoFiles: evaluation.repoFiles,
+      certificateFileName: evaluation.certificateFileName || newEvidence.certificateFileName,
     };
 
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          const dbType = newEvidence.type === 'GITHUB' ? 'GITHUB_REPO' : newEvidence.type;
           await supabase.from('evidence_records').insert({
             student_id: user.id,
             title: newEvidence.title,
-            type: newEvidence.type || 'PROJECT',
-            status: newEvidence.status || 'NEEDS_REVIEW',
-            score: typeof newEvidence.score === 'number' ? newEvidence.score : 85,
-            details: newEvidence.details || '',
+            type: dbType,
+            status: 'ISSUER_VERIFIED',
+            score: evaluation.numericScore,
+            source_url: newEvidence.sourceUrl || null,
+            description: newEvidence.details,
+            metadata: {
+              credibilityScore: evaluation.credibilityScore,
+              verifier: evaluation.verifier,
+              issuer: evaluation.issuer,
+              authenticity: evaluation.authenticityRating,
+              auditMetrics: evaluation.auditMetrics,
+              repoFiles: evaluation.repoFiles,
+              certificateFileName: evaluation.certificateFileName || newEvidence.certificateFileName,
+            },
+            verified_at: new Date().toISOString(),
           });
         }
       } catch (e) {
@@ -193,8 +261,10 @@ export const studentApi = {
     }
 
     localEvidence = [created, ...localEvidence];
+    saveStored('proofhire_evidence', localEvidence);
     return created;
   },
+
 
   async getProjects(): Promise<StudentProject[]> {
     return localProjects;

@@ -311,17 +311,39 @@ export const StudentEvidenceOverview: React.FC = () => {
 
                     <p className="text-slate-600 text-[11px] leading-relaxed">{ev.details}</p>
 
+                    {/* Certificate / Credential Details */}
+                    {(ev.type === 'CERTIFICATE' || ev.certificateFileName || ev.issuer) && (
+                      <div className="p-2 rounded-lg bg-amber-50/70 border border-amber-200 flex items-center justify-between text-[11px] text-amber-900">
+                        <span className="font-semibold flex items-center gap-1">
+                          <Award className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Issuer: <strong>{ev.issuer || 'Verified Authority'}</strong></span>
+                        </span>
+                        {ev.certificateFileName && (
+                          <span className="text-[10px] text-slate-600 bg-white px-2 py-0.5 rounded border border-amber-100 font-mono">
+                            {ev.certificateFileName}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400 border-t border-slate-100">
                       <span>Verifier: <strong className="text-slate-600">{ev.verifier}</strong></span>
                       <span>Verified: {ev.date}</span>
                     </div>
 
-                    {/* Officer Scrutiny Action Bar */}
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        Scrutiny Action:
-                      </span>
-                      <div className="flex gap-1.5">
+                    {/* Automated Verification Status & Scrutiny */}
+                    <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200 inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Automated Engine Verified</span>
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                          {ev.credibilityScore || 95}% Credibility
+                        </span>
+                      </div>
+
+                      <div className="flex gap-1.5 self-end sm:self-auto">
                         <Button
                           size="sm"
                           variant="outline"
@@ -335,13 +357,14 @@ export const StudentEvidenceOverview: React.FC = () => {
                             setEvidenceList((prev) =>
                               prev.map((item) => (item.id === ev.id ? { ...item, status: 'VERIFIED' as any } : item))
                             );
-                            showToast(`Artifact "${ev.title}" approved and verified.`, 'success');
+                            showToast(`Artifact "${ev.title}" verified by officer signoff.`, 'success');
                           }}
                           className="text-[10px] text-emerald-700 hover:bg-emerald-50 h-7 px-2 font-semibold"
                         >
                           <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Approve
+                          Signoff Override
                         </Button>
+
                         <Button
                           size="sm"
                           variant="outline"

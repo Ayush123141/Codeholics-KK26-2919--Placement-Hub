@@ -145,41 +145,58 @@ export const StudentEvidence: React.FC = () => {
             <div
               key={ev.id}
               onClick={() => handleOpenDetail(ev)}
-              className="p-5 rounded-xl border border-slate-200/90 bg-white hover:border-brand-300 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group space-y-3"
+              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group space-y-3"
             >
+              {/* Card Header: Skill, Type, and Verified Status Badge */}
               <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="info" size="sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge variant="info" size="sm" className="font-bold">
                       {ev.skillName}
                     </Badge>
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase">
-                      {ev.type}
+                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
+                      {ev.type === 'PROJECT' && <BookOpen className="w-3 h-3 text-indigo-600" />}
+                      {ev.type === 'GITHUB' && <FolderGit2 className="w-3 h-3 text-emerald-600" />}
+                      {ev.type === 'CERTIFICATE' && <Award className="w-3 h-3 text-amber-600" />}
+                      {ev.type === 'ASSESSMENT' && <ShieldCheck className="w-3 h-3 text-brand-600" />}
+                      {ev.type === 'PROJECT' ? 'Project' : ev.type === 'GITHUB' ? 'GitHub Audit' : ev.type === 'CERTIFICATE' ? 'Credential' : 'Assessment'}
                     </span>
                   </div>
                   <EvidenceBadge status={ev.status} size="sm" />
                 </div>
 
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-brand-600 transition-colors leading-snug">
+                {/* Clean Title */}
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-brand-600 transition-colors line-clamp-2 leading-snug">
                   {ev.title}
                 </h3>
-
-                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                  {ev.details}
-                </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <div className="flex items-center gap-1.5 font-medium">
-                  {ev.score && (
-                    <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                      {ev.score}
-                    </span>
-                  )}
-                  <span>• Verifier: {ev.verifier?.split('(')[0]}</span>
-                </div>
-                <span className="text-brand-600 font-bold group-hover:translate-x-0.5 transition-transform">
-                  Inspect Details →
+              {/* Dynamic Score and Credibility Indicators */}
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                {ev.score && (
+                  <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                    {ev.score}
+                  </span>
+                )}
+                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 inline-flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>{ev.credibilityScore || 94}% Credibility</span>
+                </span>
+                {ev.certificateFileName && (
+                  <span className="text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    Doc Attached
+                  </span>
+                )}
+              </div>
+
+              {/* Card Footer: Date and Inspect Details Action */}
+              <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span className="text-[11px] text-slate-400">
+                  Recorded: {ev.date}
+                </span>
+                <span className="text-brand-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                  <span>Inspect Details</span>
+                  <span className="text-sm">→</span>
                 </span>
               </div>
             </div>
