@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { studentApi } from '@/lib/api/studentApi';
+import { placementApi } from '@/lib/api/placementApi';
 import { MotionFadeIn, MotionStagger, MotionStaggerItem } from '@/components/motion/MotionFadeIn';
 import { AssessmentItem, AssessmentAttemptResult } from '@/types';
 
@@ -81,6 +82,9 @@ export const StudentAssessments: React.FC = () => {
     setSelectedAnswers({});
     setQuizResult(null);
     setTimeLeftSeconds((assessment.durationMinutes || 15) * 60);
+
+    // Record test access so campaign shortlisted & assessment counts increase
+    placementApi.recordApplicantTestAccess(studentId, assessment.id, assessment.title).catch(() => {});
   };
 
   const handleSelectOption = (questionIndex: number, optionIndex: number) => {
@@ -99,6 +103,7 @@ export const StudentAssessments: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      placementApi.recordApplicantTestAccess(studentId, activeQuiz.id, activeQuiz.title).catch(() => {});
       const res = await studentApi.submitAssessment(studentId, activeQuiz.id, answersArray, activeQuiz);
       setQuizResult(res);
       setAttempts((prev) => [res.attempt, ...prev]);

@@ -27,20 +27,30 @@ export const placementApi = {
     const apps = await this.getApplications();
     const ranking = await this.runBatchRanking('job-demo-001');
 
+    const totalShortlistedAcrossCampaigns = campaigns.reduce((sum, c) => sum + (c.shortlistedCount || 0), 0);
+    const shortlistedAppsCount = apps.filter(a => 
+      ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'INTERVIEW', 'OFFER', 'OFFERED'].includes(a.currentStage)
+    ).length;
+    const finalShortlistedCount = Math.max(
+      shortlistedAppsCount, 
+      ranking.results.filter(r => r.isShortlisted).length, 
+      totalShortlistedAcrossCampaigns
+    );
+
     return {
       activeCampaigns: campaigns.length,
       availableVacancies: Math.max(6, campaigns.length),
       cohortSize: 240,
       assessmentCompletionRate: '87.5%',
       evidenceReviewsPending: localSources.filter(s => s.resolutionStatus === 'PENDING').length + 2,
-      shortlistedCount: ranking.results.filter(r => r.isShortlisted).length,
+      shortlistedCount: finalShortlistedCount,
       applicationsByStage: {
-        applied: apps.filter(a => a.currentStage === 'APPLIED').length || 18,
-        shortlisted: apps.filter(a => a.currentStage === 'SHORTLISTED').length || 6,
-        technicalAssessment: apps.filter(a => a.currentStage === 'TECHNICAL_ASSESSMENT').length || 4,
-        interview: apps.filter(a => a.currentStage === 'INTERVIEW').length || 3,
-        offer: apps.filter(a => a.currentStage === 'OFFER').length || 1,
-        rejected: apps.filter(a => a.currentStage === 'REJECTED').length || 2,
+        applied: apps.filter(a => a.currentStage === 'APPLIED').length,
+        shortlisted: finalShortlistedCount,
+        technicalAssessment: apps.filter(a => a.currentStage === 'TECHNICAL_ASSESSMENT').length,
+        interview: apps.filter(a => a.currentStage === 'INTERVIEW').length,
+        offer: apps.filter(a => ['OFFER', 'OFFERED'].includes(a.currentStage)).length,
+        rejected: apps.filter(a => a.currentStage === 'REJECTED').length,
       },
     };
   },
@@ -49,25 +59,58 @@ export const placementApi = {
     const client = supabaseAdmin || supabase;
     if (isSupabaseConfigured && client) {
       try {
-        const { data: dbCamps, error } = await client
-          .from('campaigns')
-          .select('*, jobs(*), applications(*)')
-          .order('created_at', { ascending: false });
+        const [campsRes, appsRes] = await Promise.all([
+          client.from('campaigns').select('*, jobs(*)').order('created_at', { ascending: false }),
+          client.from('applications').select('id, job_id, campaign_id, current_stage')
+        ]);
 
-        if (!error && dbCamps && dbCamps.length > 0) {
+        const dbCamps = campsRes.data;
+        const allDbApps = appsRes.data || [];
+
+        if (!campsRes.error && dbCamps && dbCamps.length > 0) {
           const fromDb: Campaign[] = dbCamps.map((c: any) => {
-            const apps = Array.isArray(c.applications) ? c.applications : [];
-            const totalApps = apps.length;
-            // Shortlisted count strictly reflects verified shortlisted candidates
-            const shortlistedCount = apps.filter((a: any) => 
-              ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'INTERVIEW', 'OFFER', 'OFFERED'].includes(a.current_stage)
+            // Find all applications matching this campaign by campaign_id OR job_id
+            const matchingApps = allDbApps.filter((a: any) => 
+              a.campaign_id === c.id || a.job_id === c.job_id || (c.jobs && a.job_id === c.jobs.id)
+            );
+
+            // Also check local applications in case offline/session applications exist
+            const localMatching = localApplications.filter((a: any) => 
+              a.jobId === c.job_id || a.jobId === c.id || (c.jobs && a.jobId === c.jobs.id)
+            );
+
+            const allAppStages = [
+              ...matchingApps.map((a: any) => a.current_stage),
+              ...localMatching.map((a: any) => a.currentStage)
+            ];
+
+            const totalApps = Math.max(matchingApps.length, localMatching.length, c.total_applicants || 0);
+
+            // Shortlisted count strictly reflects candidates who are shortlisted or advanced to test / interview / offer
+            const dbShortlisted = allAppStages.filter((stage: string) => 
+              ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'ASSESSMENT', 'INTERVIEW', 'OFFER', 'OFFERED', 'HIRED'].includes(stage)
             ).length;
-            const interviewCount = apps.filter((a: any) => 
-              ['INTERVIEW', 'OFFER', 'OFFERED'].includes(a.current_stage)
+
+            const dbInterview = allAppStages.filter((stage: string) => 
+              ['INTERVIEW', 'OFFER', 'OFFERED', 'HIRED'].includes(stage)
             ).length;
-            const offersCount = apps.filter((a: any) => 
-              ['OFFER', 'OFFERED', 'HIRED'].includes(a.current_stage)
+
+            const dbOffers = allAppStages.filter((stage: string) => 
+              ['OFFER', 'OFFERED', 'HIRED'].includes(stage)
             ).length;
+
+            // Check if there is an explicit localStorage or localCampaigns count
+            let storedShortlisted: number | null = null;
+            try {
+              const raw = localStorage.getItem(`proofhire_campaign_shortlisted_${c.id}`) ||
+                          localStorage.getItem(`proofhire_campaign_shortlisted_${c.job_id}`);
+              if (raw !== null) storedShortlisted = parseInt(raw, 10);
+            } catch {}
+
+            const localCamp = localCampaigns.find(lc => lc.id === c.id || lc.jobId === c.job_id);
+            const shortlistedCount = storedShortlisted !== null 
+              ? Math.max(dbShortlisted, storedShortlisted)
+              : Math.max(dbShortlisted, localCamp?.shortlistedCount || 0);
 
             return {
               id: c.id,
@@ -83,19 +126,31 @@ export const placementApi = {
               deadline: c.deadline || '2026-11-30',
               targetHires: c.target_hires || 5,
               policyVersion: 'v1.0-deterministic-80-20',
-              totalApplicants: totalApps,
+              totalApplicants: Math.max(totalApps, shortlistedCount),
               shortlistedCount,
-              interviewCount,
-              offersCount,
+              interviewCount: dbInterview,
+              offersCount: dbOffers,
             };
           });
 
-          // Merge with DEMO_CAMPAIGNS (ensure no duplicates)
+          // Also enhance demo campaigns with live localRanking shortlisted counts
           const dbCampIds = new Set(fromDb.map(d => d.id));
-          const nonDuplicateDemos = DEMO_CAMPAIGNS.filter(d => !dbCampIds.has(d.id));
-          const combined = [...fromDb, ...nonDuplicateDemos];
+          const nonDuplicateDemos = DEMO_CAMPAIGNS.filter(d => !dbCampIds.has(d.id)).map(demo => {
+            const rankingCount = localRanking.filter(r => (r.jobId === demo.jobId || demo.jobId === 'job-demo-001') && r.isShortlisted).length;
+            let storedCount = demo.shortlistedCount;
+            try {
+              const raw = localStorage.getItem(`proofhire_campaign_shortlisted_${demo.id}`);
+              if (raw !== null) storedCount = parseInt(raw, 10);
+            } catch {}
+            const count = Math.max(rankingCount, storedCount);
+            return {
+              ...demo,
+              shortlistedCount: count,
+              totalApplicants: Math.max(demo.totalApplicants, count)
+            };
+          });
 
-          // Sort so recent drives appear first
+          const combined = [...fromDb, ...nonDuplicateDemos];
           combined.sort((a, b) => new Date(b.startDate || '2026-01-01').getTime() - new Date(a.startDate || '2026-01-01').getTime());
           return combined;
         }
@@ -104,7 +159,21 @@ export const placementApi = {
       }
     }
 
-    const localSorted = [...localCampaigns].sort((a, b) => new Date(b.startDate || '2026-01-01').getTime() - new Date(a.startDate || '2026-01-01').getTime());
+    const localSorted = localCampaigns.map(demo => {
+      const rankingCount = localRanking.filter(r => (r.jobId === demo.jobId || demo.jobId === 'job-demo-001') && r.isShortlisted).length;
+      let storedCount = demo.shortlistedCount;
+      try {
+        const raw = localStorage.getItem(`proofhire_campaign_shortlisted_${demo.id}`);
+        if (raw !== null) storedCount = parseInt(raw, 10);
+      } catch {}
+      const count = Math.max(rankingCount, storedCount);
+      return {
+        ...demo,
+        shortlistedCount: count,
+        totalApplicants: Math.max(demo.totalApplicants, count)
+      };
+    }).sort((a, b) => new Date(b.startDate || '2026-01-01').getTime() - new Date(a.startDate || '2026-01-01').getTime());
+
     return localSorted;
   },
 
@@ -438,6 +507,8 @@ export const placementApi = {
     const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
     let nextStage: ApplicationStage = 'SHORTLISTED';
+    let targetJobId = jobId;
+    let targetCampaignId: string | null = null;
 
     if (isSupabaseConfigured && client) {
       try {
@@ -469,10 +540,26 @@ export const placementApi = {
 
         if (existingApp) {
           nextStage = existingApp.current_stage === 'SHORTLISTED' ? 'APPLIED' : 'SHORTLISTED';
+          targetJobId = existingApp.job_id || jobId;
+          targetCampaignId = existingApp.campaign_id;
+
+          // If campaign_id was not linked, resolve it from campaigns table
+          if (!targetCampaignId && targetJobId && isUuid(targetJobId)) {
+            const { data: camp } = await client
+              .from('campaigns')
+              .select('id')
+              .eq('job_id', targetJobId)
+              .maybeSingle();
+            if (camp?.id) {
+              targetCampaignId = camp.id;
+            }
+          }
+
           await client
             .from('applications')
             .update({
               current_stage: nextStage,
+              campaign_id: targetCampaignId,
               updated_at: new Date().toISOString()
             })
             .eq('id', existingApp.id);
@@ -481,21 +568,16 @@ export const placementApi = {
             await client.from('application_events').insert({
               application_id: existingApp.id,
               to_stage: nextStage,
-              notes: `Candidate shortlist state updated by Placement Officer.`
+              notes: `Candidate shortlist state updated to ${nextStage} by Placement Officer.`
             });
           } catch {}
-
-          // Also update matching local campaign shortlist counts if linked
-          if (existingApp.campaign_id) {
-            this.getCampaigns().catch(() => {});
-          }
-
-          return nextStage === 'SHORTLISTED';
         }
       } catch (e) {
         console.warn('Supabase toggleCandidateShortlist notice:', e);
       }
     }
+
+    const isNowShortlisted = nextStage === 'SHORTLISTED';
 
     // Synchronize local application caches so student views updated stage
     try {
@@ -518,10 +600,104 @@ export const placementApi = {
       (r.studentId === identifier && (!jobId || r.jobId === jobId))
     );
     if (candidate) {
-      candidate.isShortlisted = !candidate.isShortlisted;
-      return candidate.isShortlisted;
+      candidate.isShortlisted = isNowShortlisted;
+      targetJobId = candidate.jobId || targetJobId;
     }
-    return nextStage === 'SHORTLISTED';
+
+    // Immediately update campaign shortlisted count in local state & localStorage
+    const effectiveTarget = targetCampaignId || targetJobId || jobId || 'job-demo-001';
+    localCampaigns = localCampaigns.map(c => {
+      const isMatch = c.id === effectiveTarget || c.jobId === effectiveTarget || c.id === targetCampaignId || (c.jobId && c.jobId === targetJobId);
+      if (isMatch) {
+        const currentCount = c.shortlistedCount || 0;
+        const newCount = Math.max(0, currentCount + (isNowShortlisted ? 1 : -1));
+        try {
+          localStorage.setItem(`proofhire_campaign_shortlisted_${c.id}`, String(newCount));
+          if (c.jobId) localStorage.setItem(`proofhire_campaign_shortlisted_${c.jobId}`, String(newCount));
+        } catch {}
+        return {
+          ...c,
+          shortlistedCount: newCount,
+          totalApplicants: Math.max(c.totalApplicants || 0, newCount)
+        };
+      }
+      return c;
+    });
+
+    return isNowShortlisted;
+  },
+
+  async recordApplicantTestAccess(studentId: string, assessmentId?: string, assessmentTitle?: string): Promise<boolean> {
+    const client = supabaseAdmin || supabase;
+    const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    let didUpdate = false;
+
+    // 1. Advance student's applications to TECHNICAL_ASSESSMENT in Supabase
+    if (isSupabaseConfigured && client && isUuid(studentId)) {
+      try {
+        const { data: userApps } = await client
+          .from('applications')
+          .select('id, job_id, campaign_id, current_stage')
+          .eq('student_id', studentId);
+
+        if (userApps && userApps.length > 0) {
+          for (const app of userApps) {
+            if (app.current_stage === 'APPLIED') {
+              await client
+                .from('applications')
+                .update({ 
+                  current_stage: 'TECHNICAL_ASSESSMENT',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', app.id);
+
+              try {
+                await client.from('application_events').insert({
+                  application_id: app.id,
+                  to_stage: 'TECHNICAL_ASSESSMENT',
+                  notes: `Applicant accessed proctored skill benchmark: ${assessmentTitle || assessmentId || 'Technical Evaluation'}.`
+                });
+              } catch {}
+
+              didUpdate = true;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase recordApplicantTestAccess notice:', e);
+      }
+    }
+
+    // 2. Advance local applications for this student
+    localApplications = localApplications.map(app => {
+      if (app.studentId === studentId && app.currentStage === 'APPLIED') {
+        didUpdate = true;
+        return {
+          ...app,
+          currentStage: 'TECHNICAL_ASSESSMENT' as ApplicationStage,
+        };
+      }
+      return app;
+    });
+
+    // 3. Increment shortlisted / test taker count on campaigns
+    localCampaigns = localCampaigns.map(camp => {
+      const currentShortlisted = camp.shortlistedCount || 0;
+      const updatedCount = currentShortlisted + 1;
+      try {
+        localStorage.setItem(`proofhire_campaign_shortlisted_${camp.id}`, String(updatedCount));
+        if (camp.jobId) {
+          localStorage.setItem(`proofhire_campaign_shortlisted_${camp.jobId}`, String(updatedCount));
+        }
+      } catch {}
+      return { 
+        ...camp, 
+        shortlistedCount: updatedCount,
+        totalApplicants: Math.max(camp.totalApplicants || 0, updatedCount)
+      };
+    });
+
+    return didUpdate;
   },
 
   async incrementCampaignApplicants(jobIdOrCampaignId: string): Promise<void> {
@@ -575,7 +751,8 @@ export const placementApi = {
     for (const cand of ranking.results) {
       const isEligible = cand.matchedSkills.length > 0 && cand.fitScore >= minScore && !cand.hasOfferSecured;
       if (isEligible && !cand.isShortlisted) {
-        await this.toggleCandidateShortlist(cand.studentId);
+        const targetId = cand.applicationId || cand.id || cand.studentId;
+        await this.toggleCandidateShortlist(targetId, cand.jobId || jobId);
         cand.isShortlisted = true;
         newlyShortlisted++;
       } else if (!isEligible && !cand.isShortlisted) {
@@ -637,6 +814,20 @@ export const placementApi = {
     releasedBy: string;
     message: string;
   }> {
+    const approved = localRanking.filter(r => (r.jobId === jobId || jobId === 'job-demo-001') && r.isShortlisted);
+    const count = approved.length;
+
+    localCampaigns = localCampaigns.map(c => {
+      if (c.jobId === jobId || c.id === jobId) {
+        try {
+          localStorage.setItem(`proofhire_campaign_shortlisted_${c.id}`, String(count));
+          if (c.jobId) localStorage.setItem(`proofhire_campaign_shortlisted_${c.jobId}`, String(count));
+        } catch {}
+        return { ...c, shortlistedCount: Math.max(c.shortlistedCount, count), status: 'SHORTLISTING' as const };
+      }
+      return c;
+    });
+
     try {
       return await request(`/api/placement/shortlist/release`, {
         method: 'POST',
@@ -647,10 +838,9 @@ export const placementApi = {
         }),
       });
     } catch {
-      const approved = localRanking.filter(r => r.isShortlisted);
       return {
         success: true,
-        releasedCount: approved.length,
+        releasedCount: count,
         releasedAt: new Date().toISOString(),
         releasedBy: 'Dr. Ramesh Sharma (Placement Cell)',
         message: 'Shortlist approved and officially released to company recruiter.',
@@ -779,6 +969,24 @@ export const placementApi = {
       actorRole: 'PLACEMENT_OFFICER',
       notes: notes || `Application transitioned to ${newStage.replace('_', ' ')}`,
     });
+
+    const isNowShortlisted = ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'INTERVIEW', 'OFFER'].includes(newStage);
+    const wasShortlisted = ['SHORTLISTED', 'TECHNICAL_ASSESSMENT', 'INTERVIEW', 'OFFER'].includes(previousStage);
+
+    if (isNowShortlisted && !wasShortlisted) {
+      const effectiveId = app.jobId;
+      localCampaigns = localCampaigns.map(c => {
+        if (c.id === effectiveId || c.jobId === effectiveId) {
+          const newCount = (c.shortlistedCount || 0) + 1;
+          try {
+            localStorage.setItem(`proofhire_campaign_shortlisted_${c.id}`, String(newCount));
+            if (c.jobId) localStorage.setItem(`proofhire_campaign_shortlisted_${c.jobId}`, String(newCount));
+          } catch {}
+          return { ...c, shortlistedCount: newCount };
+        }
+        return c;
+      });
+    }
 
     return app;
   },
