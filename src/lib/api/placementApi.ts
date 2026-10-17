@@ -370,6 +370,9 @@ export const placementApi = {
             const isShortlisted = ['SHORTLISTED', 'ASSESSMENT', 'INTERVIEW', 'OFFERED', 'OFFER', 'TECHNICAL_ASSESSMENT'].includes(a.current_stage);
 
             return {
+              id: a.id || `app-${a.student_id}-${a.job_id || idx}`,
+              applicationId: a.id,
+              jobId: a.job_id,
               studentId: a.student_id,
               studentName: profile.full_name || 'Candidate ' + (idx + 1),
               studentEmail: profile.email || `candidate${idx + 1}@techsummit.edu`,
@@ -412,7 +415,10 @@ export const placementApi = {
 
     const localSorted = [...localRanking].map((cand, idx) => ({
       ...cand,
-      hasOfferSecured: idx === localRanking.length - 1, // Demo placed candidate
+      id: cand.id || `cand-${cand.studentId}-${idx}`,
+      applicationId: cand.applicationId || `app-${cand.studentId}-${idx}`,
+      jobId: cand.jobId || jobId || 'job-demo-001',
+      hasOfferSecured: cand.hasOfferSecured || (idx === localRanking.length - 1), // Demo placed candidate
     })).sort((a, b) => {
       if (a.hasOfferSecured && !b.hasOfferSecured) return 1;
       if (!a.hasOfferSecured && b.hasOfferSecured) return -1;
@@ -427,19 +433,39 @@ export const placementApi = {
     };
   },
 
-  async toggleCandidateShortlist(studentId: string): Promise<boolean> {
+  async toggleCandidateShortlist(identifier: string, jobId?: string): Promise<boolean> {
     const client = supabaseAdmin || supabase;
     const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
     let nextStage: ApplicationStage = 'SHORTLISTED';
 
-    if (isSupabaseConfigured && client && isUuid(studentId)) {
+    if (isSupabaseConfigured && client) {
       try {
-        const { data: existingApp } = await client
-          .from('applications')
-          .select('*')
-          .eq('student_id', studentId)
-          .maybeSingle();
+        let existingApp: any = null;
+
+        // Try looking up by application id first if identifier is UUID
+        if (isUuid(identifier)) {
+          const { data: byAppId } = await client
+            .from('applications')
+            .select('*')
+            .eq('id', identifier)
+            .maybeSingle();
+
+          if (byAppId) {
+            existingApp = byAppId;
+          } else {
+            // Otherwise lookup by student_id and optional job_id
+            let q = client
+              .from('applications')
+              .select('*')
+              .eq('student_id', identifier);
+            if (jobId && isUuid(jobId)) {
+              q = q.eq('job_id', jobId);
+            }
+            const { data: byStudent } = await q.maybeSingle();
+            existingApp = byStudent;
+          }
+        }
 
         if (existingApp) {
           nextStage = existingApp.current_stage === 'SHORTLISTED' ? 'APPLIED' : 'SHORTLISTED';
@@ -458,6 +484,13 @@ export const placementApi = {
               notes: `Candidate shortlist state updated by Placement Officer.`
             });
           } catch {}
+
+          // Also update matching local campaign shortlist counts if linked
+          if (existingApp.campaign_id) {
+            this.getCampaigns().catch(() => {});
+          }
+
+          return nextStage === 'SHORTLISTED';
         }
       } catch (e) {
         console.warn('Supabase toggleCandidateShortlist notice:', e);
@@ -470,7 +503,7 @@ export const placementApi = {
       if (storedAppsRaw) {
         const storedApps: Application[] = JSON.parse(storedAppsRaw);
         const updated = storedApps.map(app => {
-          if (app.studentId === studentId) {
+          if (app.id === identifier || app.studentId === identifier) {
             return { ...app, currentStage: nextStage };
           }
           return app;
@@ -479,12 +512,55 @@ export const placementApi = {
       }
     } catch {}
 
-    const candidate = localRanking.find(r => r.studentId === studentId);
+    const candidate = localRanking.find(r =>
+      r.id === identifier ||
+      r.applicationId === identifier ||
+      (r.studentId === identifier && (!jobId || r.jobId === jobId))
+    );
     if (candidate) {
-      candidate.isShortlisted = nextStage === 'SHORTLISTED' ? !candidate.isShortlisted : false;
+      candidate.isShortlisted = !candidate.isShortlisted;
       return candidate.isShortlisted;
     }
     return nextStage === 'SHORTLISTED';
+  },
+
+  async incrementCampaignApplicants(jobIdOrCampaignId: string): Promise<void> {
+    const isUuid = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    // 1. Supabase real database increment
+    if (isSupabaseConfigured && (supabaseAdmin || supabase)) {
+      const client = supabaseAdmin || supabase;
+      if (client && isUuid(jobIdOrCampaignId)) {
+        try {
+          let campId: string | null = null;
+          const { data: byId } = await client.from('campaigns').select('id, total_applicants').eq('id', jobIdOrCampaignId).maybeSingle();
+          if (byId?.id) {
+            campId = byId.id;
+            await client.from('campaigns').update({ total_applicants: (byId.total_applicants || 0) + 1 }).eq('id', campId);
+          } else {
+            const { data: byJob } = await client.from('campaigns').select('id, total_applicants').eq('job_id', jobIdOrCampaignId).maybeSingle();
+            if (byJob?.id) {
+              campId = byJob.id;
+              await client.from('campaigns').update({ total_applicants: (byJob.total_applicants || 0) + 1 }).eq('id', campId);
+            }
+          }
+        } catch (e) {
+          console.warn('Supabase incrementCampaignApplicants notice:', e);
+        }
+      }
+    }
+
+    // 2. Local memory and localStorage increment
+    localCampaigns = localCampaigns.map(c => {
+      if (c.id === jobIdOrCampaignId || c.jobId === jobIdOrCampaignId) {
+        return { ...c, totalApplicants: (c.totalApplicants || 0) + 1 };
+      }
+      return c;
+    });
+
+    try {
+      localStorage.setItem('proofhire_local_campaigns', JSON.stringify(localCampaigns));
+    } catch {}
   },
 
   async autoShortlistVerifiedCandidates(jobId?: string, minScore: number = 70): Promise<{

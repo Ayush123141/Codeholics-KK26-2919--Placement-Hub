@@ -153,6 +153,9 @@ export interface JobSource {
 }
 
 export interface MatchingResult {
+  id?: string;
+  applicationId?: string;
+  jobId?: string;
   studentId: string;
   studentName: string;
   studentEmail: string;

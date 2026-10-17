@@ -122,28 +122,31 @@ export const BatchRankingShortlist: React.FC = () => {
     fetchRanking(selectedJobId);
   }, [selectedJobId]);
 
-  const handleToggleShortlist = async (studentId: string) => {
-    const candidate = candidates.find((c) => c.studentId === studentId);
-    if (!candidate) return;
-
+  const handleToggleShortlist = async (cand: MatchingResult) => {
     // ANTI-BIAS GUARD: If officer is trying to shortlist someone with 0 verified skills and 0 assessment score
-    if (!candidate.isShortlisted && candidate.matchedSkills.length === 0 && candidate.assessmentScore === 0) {
-      setAntiBiasCandidate(candidate);
+    if (!cand.isShortlisted && cand.matchedSkills.length === 0 && cand.assessmentScore === 0) {
+      setAntiBiasCandidate(cand);
       return;
     }
 
-    setActionLoading(studentId);
+    const targetId = cand.applicationId || cand.id || cand.studentId;
+    setActionLoading(targetId);
+
     try {
-      const isShortlisted = await placementApi.toggleCandidateShortlist(studentId);
+      const isShortlisted = await placementApi.toggleCandidateShortlist(targetId, cand.jobId);
       setCandidates((prev) =>
-        prev.map((c) =>
-          c.studentId === studentId ? { ...c, isShortlisted } : c
-        )
+        prev.map((c) => {
+          const isMatch =
+            (cand.applicationId && c.applicationId === cand.applicationId) ||
+            (cand.id && c.id === cand.id) ||
+            (c.studentId === cand.studentId && (!cand.jobId || !c.jobId || c.jobId === cand.jobId));
+          return isMatch ? { ...c, isShortlisted } : c;
+        })
       );
       showToast(
         isShortlisted
-          ? 'Candidate verified & approved! Added to cohort shortlist.'
-          : 'Candidate removed from cohort shortlist',
+          ? `${cand.studentName} approved! Added to verified shortlist.`
+          : `${cand.studentName} removed from shortlist`,
         isShortlisted ? 'success' : 'info'
       );
 
@@ -498,8 +501,8 @@ export const BatchRankingShortlist: React.FC = () => {
                       <Button
                         size="sm"
                         variant={cand.isShortlisted ? 'success' : 'outline'}
-                        onClick={() => handleToggleShortlist(cand.studentId)}
-                        isLoading={actionLoading === cand.studentId}
+                        onClick={() => handleToggleShortlist(cand)}
+                        isLoading={actionLoading === (cand.applicationId || cand.id || cand.studentId)}
                         className="gap-1 font-bold whitespace-nowrap text-xs"
                       >
                         <FileCheck2 className="w-3.5 h-3.5" />
@@ -613,7 +616,7 @@ export const BatchRankingShortlist: React.FC = () => {
                 size="sm"
                 variant={selectedCandidate.isShortlisted ? 'success' : 'primary'}
                 onClick={() => {
-                  handleToggleShortlist(selectedCandidate.studentId);
+                  handleToggleShortlist(selectedCandidate);
                   setIsDetailOpen(false);
                 }}
               >

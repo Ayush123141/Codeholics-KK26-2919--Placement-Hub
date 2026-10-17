@@ -33,6 +33,7 @@ import {
 import { resumeParserService, ExtractedResumeData } from '@/lib/services/resumeParser';
 import { automatedEvidenceEngine } from '@/lib/services/automatedEvidenceEngine';
 import { llmAssistService } from '@/lib/services/llmAssist';
+import { placementApi } from './placementApi';
 
 // In-memory / session store for stateful UI mutations with localStorage persistence
 function loadStored<T>(key: string, fallback: T): T {
@@ -448,22 +449,64 @@ export const studentApi = {
   },
 
   async getJobs(): Promise<Job[]> {
+    // Determine current user's applied jobs dynamically
+    let appliedJobIds = new Set<string>();
     if (isSupabaseConfigured && supabase) {
       try {
-        let appliedJobIds = new Set<string>();
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: myApps } = await supabase
-              .from('applications')
-              .select('job_id')
-              .eq('student_id', user.id);
-            if (myApps) {
-              appliedJobIds = new Set(myApps.map((a: any) => a.job_id));
-            }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: myApps } = await supabase
+            .from('applications')
+            .select('job_id')
+            .eq('student_id', user.id);
+          if (myApps) {
+            appliedJobIds = new Set(myApps.map((a: any) => a.job_id));
           }
-        } catch {}
+        }
+      } catch {}
+    }
 
+    // Check user-scoped local storage for applications as well
+    try {
+      const storedUser = localStorage.getItem('proofhire_user') || localStorage.getItem('proofhire_auth_session');
+      const uid = storedUser ? JSON.parse(storedUser)?.id : localStudentProfile.id;
+      if (uid) {
+        const userKey = `proofhire_student_applications_${uid}`;
+        const raw = localStorage.getItem(userKey);
+        if (raw) {
+          const apps: Application[] = JSON.parse(raw);
+          apps.forEach((a) => appliedJobIds.add(a.jobId));
+        }
+      }
+    } catch {}
+
+    // Dynamically evaluate student's verified skills for accurate match scoring
+    const studentSkills = await this.getSkills();
+    const verifiedSkillNames = new Set(
+      studentSkills
+        .filter((s) => s.status === 'VERIFIED')
+        .map((s) => s.canonicalName.toLowerCase())
+    );
+
+    const computeJobMatch = (
+      reqList: { canonicalName: string }[] = [],
+      prefList: { canonicalName: string }[] = []
+    ) => {
+      // If student has 0 verified skills, match score is strictly 0%
+      if (verifiedSkillNames.size === 0) return 0;
+      const totalReq = reqList.length || 1;
+      const totalPref = prefList.length || 0;
+      const matchedReq = reqList.filter((s) => verifiedSkillNames.has(s.canonicalName.toLowerCase())).length;
+      const matchedPref = prefList.filter((s) => verifiedSkillNames.has(s.canonicalName.toLowerCase())).length;
+      const reqWeight = totalPref > 0 ? 0.8 : 1.0;
+      const prefWeight = totalPref > 0 ? 0.2 : 0.0;
+      const reqScore = (matchedReq / totalReq) * reqWeight * 100;
+      const prefScore = totalPref > 0 ? (matchedPref / totalPref) * prefWeight * 100 : 0;
+      return Math.min(100, Math.round(reqScore + prefScore));
+    };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
         const { data: dbJobs } = await supabase
           .from('jobs')
           .select('*, campaigns(*)')
@@ -473,6 +516,16 @@ export const studentApi = {
         if (dbJobs && dbJobs.length > 0) {
           const fromDb: Job[] = dbJobs.map((item: any) => {
             const hasApplied = appliedJobIds.has(item.id);
+            const reqSkills = [
+              { skillId: 'skill-react', canonicalName: 'React', sourceText: 'React', weight: 40 },
+              { skillId: 'skill-ts', canonicalName: 'TypeScript', sourceText: 'TypeScript', weight: 30 },
+              { skillId: 'skill-node', canonicalName: 'Node.js', sourceText: 'Node.js', weight: 30 },
+            ];
+            const prefSkills = [
+              { skillId: 'skill-pg', canonicalName: 'PostgreSQL', sourceText: 'PostgreSQL', weight: 20 },
+              { skillId: 'skill-docker', canonicalName: 'Docker', sourceText: 'Docker', weight: 10 },
+            ];
+
             return {
               id: item.id,
               title: item.title,
@@ -481,15 +534,8 @@ export const studentApi = {
               type: (item.workplace_type || 'Full-time') as Job['type'],
               salaryRange: item.salary_range || '₹8,00,000 - ₹14,00,000',
               description: item.description || '',
-              requiredSkills: [
-                { skillId: 'skill-react', canonicalName: 'React', sourceText: 'React', weight: 40 },
-                { skillId: 'skill-ts', canonicalName: 'TypeScript', sourceText: 'TypeScript', weight: 30 },
-                { skillId: 'skill-node', canonicalName: 'Node.js', sourceText: 'Node.js', weight: 30 },
-              ],
-              preferredSkills: [
-                { skillId: 'skill-pg', canonicalName: 'PostgreSQL', sourceText: 'PostgreSQL', weight: 20 },
-                { skillId: 'skill-docker', canonicalName: 'Docker', sourceText: 'Docker', weight: 10 },
-              ],
+              requiredSkills: reqSkills,
+              preferredSkills: prefSkills,
               eligibilityCriteria: {
                 minimumCgpa: 6.5,
                 allowedDepartments: ['Computer Science', 'Information Technology'],
@@ -499,14 +545,21 @@ export const studentApi = {
               postedDate: item.created_at ? item.created_at.split('T')[0] : '2026-01-15',
               status: 'ACTIVE',
               sourceCount: 1,
-              matchedScore: hasApplied ? 92 : 88,
+              matchedScore: computeJobMatch(reqSkills, prefSkills),
               hasApplied,
             };
           });
 
-          // Merge with DEMO_JOBS (omit duplicates)
-          const dbJobTitles = new Set(fromDb.map(j => j.title.toLowerCase()));
-          const nonDupDemos = DEMO_JOBS.filter(d => !dbJobTitles.has(d.title.toLowerCase()));
+          // Merge with DEMO_JOBS (omit duplicates) and recalculate match scores dynamically
+          const dbJobTitles = new Set(fromDb.map((j) => j.title.toLowerCase()));
+          const nonDupDemos = DEMO_JOBS
+            .filter((d) => !dbJobTitles.has(d.title.toLowerCase()))
+            .map((d) => ({
+              ...d,
+              hasApplied: appliedJobIds.has(d.id),
+              matchedScore: computeJobMatch(d.requiredSkills, d.preferredSkills),
+            }));
+
           return [...fromDb, ...nonDupDemos];
         }
       } catch (e) {
@@ -514,7 +567,11 @@ export const studentApi = {
       }
     }
 
-    return localJobs;
+    return localJobs.map((j) => ({
+      ...j,
+      hasApplied: appliedJobIds.has(j.id),
+      matchedScore: computeJobMatch(j.requiredSkills, j.preferredSkills),
+    }));
   },
 
   async getJobById(jobId: string): Promise<Job | undefined> {
@@ -536,20 +593,24 @@ export const studentApi = {
     (job as any).hasApplied = true;
 
     // Calculate dynamic fit score based on candidate skills vs job requirements (80/20 formula)
-    let dynamicFitScore = 85;
+    let dynamicFitScore = 0;
     try {
-      const studentSkillSet = new Set(candidateSkills.map((s) => s.canonicalName.toLowerCase()));
-      const reqList = job.requiredSkills?.map((s) => s.canonicalName.toLowerCase()) || [];
-      const prefList = job.preferredSkills?.map((s) => s.canonicalName.toLowerCase()) || [];
-      const matchedReq = reqList.filter((s) => studentSkillSet.has(s)).length;
-      const matchedPref = prefList.filter((s) => studentSkillSet.has(s)).length;
-      const totalReq = reqList.length || 1;
-      const totalPref = prefList.length || 0;
-      const reqWeight = totalPref > 0 ? 0.8 : 1.0;
-      const prefWeight = totalPref > 0 ? 0.2 : 0.0;
-      const reqScore = (matchedReq / totalReq) * reqWeight * 100;
-      const prefScore = totalPref > 0 ? (matchedPref / totalPref) * prefWeight * 100 : 0;
-      dynamicFitScore = Math.max(50, Math.min(98, Math.round(reqScore + prefScore)));
+      const studentSkillSet = new Set(
+        candidateSkills.filter((s) => s.status === 'VERIFIED').map((s) => s.canonicalName.toLowerCase())
+      );
+      if (studentSkillSet.size > 0) {
+        const reqList = job.requiredSkills?.map((s) => s.canonicalName.toLowerCase()) || [];
+        const prefList = job.preferredSkills?.map((s) => s.canonicalName.toLowerCase()) || [];
+        const matchedReq = reqList.filter((s) => studentSkillSet.has(s)).length;
+        const matchedPref = prefList.filter((s) => studentSkillSet.has(s)).length;
+        const totalReq = reqList.length || 1;
+        const totalPref = prefList.length || 0;
+        const reqWeight = totalPref > 0 ? 0.8 : 1.0;
+        const prefWeight = totalPref > 0 ? 0.2 : 0.0;
+        const reqScore = (matchedReq / totalReq) * reqWeight * 100;
+        const prefScore = totalPref > 0 ? (matchedPref / totalPref) * prefWeight * 100 : 0;
+        dynamicFitScore = Math.max(10, Math.min(100, Math.round(reqScore + prefScore)));
+      }
     } catch {}
 
     const nowFormatted = new Date().toLocaleString('en-US', {
@@ -560,34 +621,45 @@ export const studentApi = {
       minute: '2-digit',
     });
 
+    let currentUserId = localStudentProfile.id;
+
     if (isSupabaseConfigured && supabase) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user && isUuid(jobId)) {
-          // Check for linked campaign
-          let campaignId: string | null = null;
-          try {
-            const { data: camp } = await supabase
-              .from('campaigns')
-              .select('id')
-              .eq('job_id', jobId)
-              .maybeSingle();
-            if (camp?.id) campaignId = camp.id;
-          } catch {}
+        if (user) {
+          currentUserId = user.id;
+          if (isUuid(jobId)) {
+            // Check for linked campaign and increment applicant count
+            let campaignId: string | null = null;
+            try {
+              const { data: camp } = await supabase
+                .from('campaigns')
+                .select('id, total_applicants')
+                .eq('job_id', jobId)
+                .maybeSingle();
+              if (camp?.id) {
+                campaignId = camp.id;
+                await supabase
+                  .from('campaigns')
+                  .update({ total_applicants: (camp.total_applicants || 0) + 1 })
+                  .eq('id', camp.id);
+              }
+            } catch {}
 
-          const { data: insertedApp } = await supabase.from('applications').insert({
-            job_id: jobId,
-            student_id: user.id,
-            campaign_id: campaignId,
-            current_stage: 'APPLIED',
-          }).select().single();
+            const { data: insertedApp } = await supabase.from('applications').insert({
+              job_id: jobId,
+              student_id: user.id,
+              campaign_id: campaignId,
+              current_stage: 'APPLIED',
+            }).select().single();
 
-          if (insertedApp?.id) {
-            await supabase.from('application_events').insert({
-              application_id: insertedApp.id,
-              to_stage: 'APPLIED',
-              notes: 'Application submitted with verified evidence ledger.',
-            });
+            if (insertedApp?.id) {
+              await supabase.from('application_events').insert({
+                application_id: insertedApp.id,
+                to_stage: 'APPLIED',
+                notes: 'Application registered with verified skill proof.',
+              });
+            }
           }
         }
       } catch (e) {
@@ -595,12 +667,17 @@ export const studentApi = {
       }
     }
 
+    // Increment placement campaign applicants count
+    try {
+      await placementApi.incrementCampaignApplicants(jobId);
+    } catch {}
+
     const newApp: Application = {
       id: `app-${Date.now()}`,
       jobId: job.id,
       jobTitle: (job as any).title,
       companyName: (job as any).company,
-      studentId: localStudentProfile.id,
+      studentId: currentUserId,
       studentName: localStudentProfile.name,
       appliedAt: nowFormatted,
       currentStage: 'APPLIED',
@@ -618,7 +695,15 @@ export const studentApi = {
       ],
     };
 
-    // Filter out if already in localApplications (avoid duplicates)
+    // Store in user-scoped local applications list
+    try {
+      const userKey = `proofhire_student_applications_${currentUserId}`;
+      const existing = localStorage.getItem(userKey);
+      const list: Application[] = existing ? JSON.parse(existing) : [];
+      const updated = [newApp, ...list.filter((a) => a.jobId !== job.id)];
+      localStorage.setItem(userKey, JSON.stringify(updated));
+    } catch {}
+
     localApplications = [newApp, ...localApplications.filter((a) => a.jobId !== job.id)];
     saveStored('proofhire_student_applications', localApplications);
     return newApp;
@@ -666,7 +751,7 @@ export const studentApi = {
             .eq('student_id', user.id)
             .order('created_at', { ascending: false });
 
-          if (!error && dbApps && dbApps.length > 0) {
+          if (!error && Array.isArray(dbApps)) {
             const stageMap: Record<string, ApplicationStage> = {
               'APPLIED': 'APPLIED',
               'SHORTLISTED': 'SHORTLISTED',
@@ -735,9 +820,12 @@ export const studentApi = {
               };
             });
 
-            // Merge with localApplications (ensure local offline/recent items aren't lost)
+            // Merge with user-scoped local applications
+            const userKey = `proofhire_student_applications_${user.id}`;
+            const userLocalRaw = localStorage.getItem(userKey);
+            const userLocal: Application[] = userLocalRaw ? JSON.parse(userLocalRaw) : [];
             const dbJobIds = new Set(dbMapped.map((d) => d.jobId));
-            const extraLocal = localApplications.filter((l) => !dbJobIds.has(l.jobId));
+            const extraLocal = userLocal.filter((l) => !dbJobIds.has(l.jobId));
             return [...dbMapped, ...extraLocal];
           }
         }
@@ -746,7 +834,26 @@ export const studentApi = {
       }
     }
 
-    return localApplications;
+    // Check if authenticated student session exists
+    try {
+      const stored = localStorage.getItem('proofhire_auth_session') || sessionStorage.getItem('proofhire_user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.id && parsed.id !== 'student-demo-001') {
+          const userKey = `proofhire_student_applications_${parsed.id}`;
+          const raw = localStorage.getItem(userKey);
+          if (raw) return JSON.parse(raw);
+          return []; // A newly registered student starts with 0 applications!
+        }
+      }
+    } catch {}
+
+    // Only fallback to demo applications for unauthenticated demo persona Alex Morgan
+    if (localStudentProfile.id === 'student-demo-001') {
+      return localApplications;
+    }
+
+    return [];
   },
 
   async getResumeBullets(_jobId?: string): Promise<ResumeBulletItem[]> {

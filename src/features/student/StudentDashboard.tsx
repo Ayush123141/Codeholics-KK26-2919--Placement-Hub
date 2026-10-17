@@ -138,8 +138,8 @@ export const StudentDashboard: React.FC = () => {
         <MotionStaggerItem>
           <StatCard
             title="Top Match Fit"
-            value={`${jobs[0]?.matchedScore || 82}%`}
-            subtitle={jobs[0]?.company || 'CloudScale Technologies'}
+            value={`${verifiedSkillsCount > 0 && jobs[0]?.matchedScore ? jobs[0].matchedScore : 0}%`}
+            subtitle={verifiedSkillsCount > 0 && jobs[0]?.matchedScore ? (jobs[0].company || 'Verified Matches') : 'No verified skills recorded'}
             icon={<TrendingUp className="w-5 h-5" />}
             color="violet"
           />
@@ -148,7 +148,7 @@ export const StudentDashboard: React.FC = () => {
           <StatCard
             title="Active Applications"
             value={applications.length}
-            subtitle="Round 1 Technical Interview"
+            subtitle={activeApplication ? (activeApplication.currentStage || 'Application under review') : 'No active applications'}
             icon={<Briefcase className="w-5 h-5" />}
             color="amber"
           />
