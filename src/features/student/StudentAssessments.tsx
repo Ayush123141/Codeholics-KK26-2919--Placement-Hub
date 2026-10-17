@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { studentApi } from '@/lib/api/studentApi';
+import { MotionFadeIn, MotionStagger, MotionStaggerItem } from '@/components/motion/MotionFadeIn';
 import { AssessmentItem, AssessmentAttemptResult } from '@/types';
 
 export const StudentAssessments: React.FC = () => {
@@ -296,83 +297,87 @@ export const StudentAssessments: React.FC = () => {
   // Assessment Catalog View
   return (
     <div className="space-y-6 max-w-5xl font-sans text-ink">
-      <div>
-        <span className="eyebrow !mb-1">Technical Benchmarks</span>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
-          Objective Skill Assessments
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-          Complete standardized, timed technical benchmarks to mint tamper-proof verified evidence artifacts without needing a public GitHub repository.
-        </p>
-      </div>
+      <MotionFadeIn direction="down" duration={0.4}>
+        <div>
+          <span className="eyebrow !mb-1">Technical Benchmarks</span>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+            Objective Skill Assessments
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+            Complete standardized, timed technical benchmarks to mint tamper-proof verified evidence artifacts without needing a public GitHub repository.
+          </p>
+        </div>
+      </MotionFadeIn>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <MotionStagger className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {assessments.map((assess) => {
           const pastAttempt = attempts.find((a) => a.assessmentId === assess.id);
           const hasPassed = pastAttempt?.passed;
 
           return (
-            <Card key={assess.id} className="flex flex-col justify-between p-5 space-y-4 border-line hover:border-slate-300 hover:shadow-card-hover transition-all bg-white shadow-card">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="skill-tag-chip">
-                    v{assess.version}
+            <MotionStaggerItem key={assess.id}>
+              <Card className="flex flex-col justify-between p-5 space-y-4 border-line hover:border-slate-300 hover:shadow-card-hover transition-all bg-white shadow-card h-full">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="skill-tag-chip">
+                      v{assess.version}
+                    </span>
+                    {hasPassed ? (
+                      <Badge variant="fresh" size="sm" className="gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-fresh" />
+                        Passed ({pastAttempt.score}%)
+                      </Badge>
+                    ) : pastAttempt ? (
+                      <Badge variant="warning" size="sm">
+                        Attempted ({pastAttempt.score}%)
+                      </Badge>
+                    ) : (
+                      <Badge variant="default" size="sm">
+                        Ready to Start
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="font-display text-base font-bold text-ink">{assess.title}</h3>
+                    <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{assess.instructions}</p>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{assess.durationMinutes || 15} mins</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{assess.questionCount} Questions</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-fresh" />
+                      <span>Passing: 70%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-line flex items-center justify-between">
+                  <span className="font-mono text-[11px] text-slate-400 font-medium">
+                    {hasPassed ? 'Artifact registered in evidence ledger' : 'Instant objective grading'}
                   </span>
-                  {hasPassed ? (
-                    <Badge variant="fresh" size="sm" className="gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-fresh" />
-                      Passed ({pastAttempt.score}%)
-                    </Badge>
-                  ) : pastAttempt ? (
-                    <Badge variant="warning" size="sm">
-                      Attempted ({pastAttempt.score}%)
-                    </Badge>
-                  ) : (
-                    <Badge variant="default" size="sm">
-                      Ready to Start
-                    </Badge>
-                  )}
+                  <Button
+                    size="sm"
+                    variant={hasPassed ? 'outline' : 'primary'}
+                    onClick={() => handleStartQuiz(assess)}
+                    className="gap-1.5 font-mono font-bold text-xs"
+                  >
+                    <Play className="w-3 h-3 fill-current" />
+                    <span>{hasPassed ? 'Retake' : 'Start Assessment'}</span>
+                  </Button>
                 </div>
-
-                <div>
-                  <h3 className="font-display text-base font-bold text-ink">{assess.title}</h3>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{assess.instructions}</p>
-                </div>
-
-                <div className="flex items-center gap-4 text-xs font-mono text-slate-500">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{assess.durationMinutes || 15} mins</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{assess.questionCount} Questions</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-fresh" />
-                    <span>Passing: 70%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-line flex items-center justify-between">
-                <span className="font-mono text-[11px] text-slate-400 font-medium">
-                  {hasPassed ? 'Artifact registered in evidence ledger' : 'Instant objective grading'}
-                </span>
-                <Button
-                  size="sm"
-                  variant={hasPassed ? 'outline' : 'primary'}
-                  onClick={() => handleStartQuiz(assess)}
-                  className="gap-1.5 font-mono font-bold text-xs"
-                >
-                  <Play className="w-3 h-3 fill-current" />
-                  <span>{hasPassed ? 'Retake' : 'Start Assessment'}</span>
-                </Button>
-              </div>
-            </Card>
+              </Card>
+            </MotionStaggerItem>
           );
         })}
-      </div>
+      </MotionStagger>
 
       {/* History of Completed Benchmarks */}
       {attempts.length > 0 && (

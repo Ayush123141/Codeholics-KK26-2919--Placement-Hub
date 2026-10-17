@@ -25,6 +25,7 @@ import { MatchScoreBar } from '@/components/data-display/MatchScoreBar';
 import { DashboardSkeleton } from '@/components/feedback/LoadingSkeleton';
 import { studentApi } from '@/lib/api/studentApi';
 import { placementApi } from '@/lib/api/placementApi';
+import { MotionFadeIn, MotionStagger, MotionStaggerItem } from '@/components/motion/MotionFadeIn';
 import { UserProfile, StudentSkill, Job, Application, EvidenceRecord, Campaign } from '@/types';
 
 export const StudentDashboard: React.FC = () => {
@@ -78,71 +79,81 @@ export const StudentDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Clean Institutional Header Card */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
-        <div className="space-y-1.5">
-          <span className="eyebrow !mb-1">Student Candidate Dashboard</span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
-            Welcome back, {profile.name}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
-            {profile.degree} • {profile.college} (CGPA: {profile.cgpa}/10.0). Your candidate profile is supported by{' '}
-            <strong className="text-ink font-semibold">{evidenceList.length} verified evidence artifacts</strong> across proctored assessments and evaluated coursework.
-          </p>
-        </div>
+      <MotionFadeIn direction="down" duration={0.4}>
+        <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
+          <div className="space-y-1.5">
+            <span className="eyebrow !mb-1">Student Candidate Dashboard</span>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+              Welcome back, {profile.name}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+              {profile.degree} • {profile.college} (CGPA: {profile.cgpa}/10.0). Your candidate profile is supported by{' '}
+              <strong className="text-ink font-semibold">{evidenceList.length} verified evidence artifacts</strong> across proctored assessments and evaluated coursework.
+            </p>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/student/assessments')}
-            className="text-xs font-semibold"
-          >
-            <ClipboardCheck className="w-4 h-4 mr-1 text-slate-600" />
-            Take Skill Assessment
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/student/jobs')}
-            className="text-xs font-semibold gap-1.5"
-          >
-            <span>Explore Vacancies</span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/student/assessments')}
+              className="text-xs font-semibold"
+            >
+              <ClipboardCheck className="w-4 h-4 mr-1 text-slate-600" />
+              Take Skill Assessment
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/student/jobs')}
+              className="text-xs font-semibold gap-1.5"
+            >
+              <span>Explore Vacancies</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      </MotionFadeIn>
 
       {/* KPI Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Verified Skills"
-          value={verifiedSkillsCount}
-          subtitle={`Across ${skills.length} tracked skills`}
-          icon={<ShieldCheck className="w-5 h-5" />}
-          color="brand"
-        />
-        <StatCard
-          title="Evidence Artifacts"
-          value={evidenceList.length}
-          subtitle="Assessments, repos & rubrics"
-          icon={<Award className="w-5 h-5" />}
-          color="emerald"
-        />
-        <StatCard
-          title="Top Match Fit"
-          value={`${jobs[0]?.matchedScore || 82}%`}
-          subtitle={jobs[0]?.company || 'CloudScale Technologies'}
-          icon={<TrendingUp className="w-5 h-5" />}
-          color="violet"
-        />
-        <StatCard
-          title="Active Applications"
-          value={applications.length}
-          subtitle="Round 1 Technical Interview"
-          icon={<Briefcase className="w-5 h-5" />}
-          color="amber"
-        />
-      </div>
+      <MotionStagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MotionStaggerItem>
+          <StatCard
+            title="Verified Skills"
+            value={verifiedSkillsCount}
+            subtitle={`Across ${skills.length} tracked skills`}
+            icon={<ShieldCheck className="w-5 h-5" />}
+            color="brand"
+          />
+        </MotionStaggerItem>
+        <MotionStaggerItem>
+          <StatCard
+            title="Evidence Artifacts"
+            value={evidenceList.length}
+            subtitle="Assessments, repos & rubrics"
+            icon={<Award className="w-5 h-5" />}
+            color="emerald"
+          />
+        </MotionStaggerItem>
+        <MotionStaggerItem>
+          <StatCard
+            title="Top Match Fit"
+            value={`${jobs[0]?.matchedScore || 82}%`}
+            subtitle={jobs[0]?.company || 'CloudScale Technologies'}
+            icon={<TrendingUp className="w-5 h-5" />}
+            color="violet"
+          />
+        </MotionStaggerItem>
+        <MotionStaggerItem>
+          <StatCard
+            title="Active Applications"
+            value={applications.length}
+            subtitle="Round 1 Technical Interview"
+            icon={<Briefcase className="w-5 h-5" />}
+            color="amber"
+          />
+        </MotionStaggerItem>
+      </MotionStagger>
 
       {/* Main Grid: Evidence Summary + Recommended Jobs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

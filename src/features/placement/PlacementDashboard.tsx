@@ -16,6 +16,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { StatCard } from '@/components/data-display/StatCard';
+import { MotionFadeIn, MotionStagger, MotionStaggerItem } from '@/components/motion/MotionFadeIn';
 import { placementApi } from '@/lib/api/placementApi';
 import { Campaign, JobSource, MatchingResult } from '@/types';
 
@@ -49,69 +50,79 @@ export const PlacementDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Institutional Header Banner */}
-      <div className="rounded-xl bg-white p-6 sm:p-7 text-slate-900 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1.5">
-          <span className="eyebrow !mb-1">Central Placement Cell</span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
-            Placement Operations Hub
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
-            TechSummitTrainers cohort management, duplicate job detection across ingested sources, and deterministic batch ranking.
-          </p>
-        </div>
+      <MotionFadeIn direction="down" duration={0.4}>
+        <div className="rounded-xl bg-white p-6 sm:p-7 text-slate-900 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1.5">
+            <span className="eyebrow !mb-1">Central Placement Cell</span>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+              Placement Operations Hub
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
+              TechSummitTrainers cohort management, duplicate job detection across ingested sources, and deterministic batch ranking.
+            </p>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/placement/job-ingestion')}
-            className="border-slate-300 text-slate-700 hover:bg-slate-50"
-          >
-            Review Ingested Jobs
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => navigate('/placement/batch-ranking')}
-            className="bg-brand-600 hover:bg-brand-700 text-white shadow-xs"
-          >
-            <span>Run Batch Ranking</span>
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </Button>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/placement/job-ingestion')}
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              Review Ingested Jobs
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => navigate('/placement/batch-ranking')}
+              className="bg-brand-600 hover:bg-brand-700 text-white shadow-xs"
+            >
+              <span>Run Batch Ranking</span>
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
         </div>
-      </div>
+      </MotionFadeIn>
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Active Campaigns"
-          value={metrics.activeCampaigns}
-          subtitle="CloudScale & Nexus Drives"
-          icon={<Target className="w-5 h-5" />}
-          color="brand"
-        />
-        <StatCard
-          title="Cohort Students"
-          value={metrics.cohortSize}
-          subtitle="2026 Batch (CS & IT)"
-          icon={<Users2 className="w-5 h-5" />}
-          color="slate"
-        />
-        <StatCard
-          title="Assessment Rate"
-          value={metrics.assessmentCompletionRate}
-          subtitle="Proctored benchmarks"
-          icon={<Award className="w-5 h-5" />}
-          color="emerald"
-        />
-        <StatCard
-          title="Duplicate Warnings"
-          value={duplicateWarningsCount}
-          subtitle="Awaiting officer resolution"
-          icon={<CopyCheck className="w-5 h-5 text-amber-600" />}
-          color="amber"
-        />
-      </div>
+      <MotionStagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MotionStaggerItem>
+          <StatCard
+            title="Active Campaigns"
+            value={metrics.activeCampaigns}
+            subtitle="CloudScale & Nexus Drives"
+            icon={<Target className="w-5 h-5" />}
+            color="brand"
+          />
+        </MotionStaggerItem>
+        <MotionStaggerItem>
+          <StatCard
+            title="Cohort Students"
+            value={metrics.cohortSize}
+            subtitle="2026 Batch (CS & IT)"
+            icon={<Users2 className="w-5 h-5" />}
+            color="slate"
+          />
+        </MotionStaggerItem>
+        <MotionStaggerItem>
+          <StatCard
+            title="Assessment Rate"
+            value={metrics.assessmentCompletionRate}
+            subtitle="Proctored benchmarks"
+            icon={<Award className="w-5 h-5" />}
+            color="emerald"
+          />
+        </MotionStaggerItem>
+        <MotionStaggerItem>
+          <StatCard
+            title="Duplicate Warnings"
+            value={duplicateWarningsCount}
+            subtitle="Awaiting officer resolution"
+            icon={<CopyCheck className="w-5 h-5 text-amber-600" />}
+            color="amber"
+          />
+        </MotionStaggerItem>
+      </MotionStagger>
 
       {/* Main Row: Campaigns & Batch Ranking Snapshot */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

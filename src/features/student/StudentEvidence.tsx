@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { EvidenceDetailModal } from './EvidenceDetailModal';
 import { AddEvidenceModal } from './AddEvidenceModal';
 import { studentApi } from '@/lib/api/studentApi';
+import { MotionFadeIn, MotionStagger, MotionStaggerItem } from '@/components/motion/MotionFadeIn';
 import { EvidenceRecord, EvidenceType, EvidenceStatus } from '@/types';
 
 export const StudentEvidence: React.FC = () => {
@@ -81,20 +82,22 @@ export const StudentEvidence: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Verifiable Skill Evidence
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Every claimed skill is linked to proctored benchmarks, code repository AST audits, or verified credentials.
-          </p>
+      <MotionFadeIn direction="down" duration={0.4}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              Verifiable Skill Evidence
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Every claimed skill is linked to proctored benchmarks, code repository AST audits, or verified credentials.
+            </p>
+          </div>
+          <Button onClick={() => setIsAddOpen(true)} className="gap-1.5 self-start sm:self-auto">
+            <Plus className="w-4 h-4" />
+            <span>Submit Evidence Artifact</span>
+          </Button>
         </div>
-        <Button onClick={() => setIsAddOpen(true)} className="gap-1.5 self-start sm:self-auto">
-          <Plus className="w-4 h-4" />
-          <span>Submit Evidence Artifact</span>
-        </Button>
-      </div>
+      </MotionFadeIn>
 
       {/* Tabs & Search controls */}
       <Card className="p-4 space-y-4">
@@ -152,88 +155,89 @@ export const StudentEvidence: React.FC = () => {
           }}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MotionStagger className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredEvidence.map((ev) => (
-            <div
-              key={ev.id}
-              onClick={() => handleOpenDetail(ev)}
-              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group space-y-3"
-            >
-              {/* Card Header: Skill, Type, and Verified Status Badge */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge variant="info" size="sm" className="font-bold">
-                      {ev.skillName}
-                    </Badge>
-                    <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
-                      {ev.type === 'PROJECT' && <BookOpen className="w-3 h-3 text-indigo-600" />}
-                      {ev.type === 'GITHUB' && <FolderGit2 className="w-3 h-3 text-emerald-600" />}
-                      {ev.type === 'CERTIFICATE' && <Award className="w-3 h-3 text-amber-600" />}
-                      {ev.type === 'ASSESSMENT' && <ShieldCheck className="w-3 h-3 text-brand-600" />}
-                      {ev.type === 'PROJECT' ? 'Project' : ev.type === 'GITHUB' ? 'GitHub Audit' : ev.type === 'CERTIFICATE' ? 'Credential' : 'Assessment'}
+            <MotionStaggerItem key={ev.id}>
+              <div
+                onClick={() => handleOpenDetail(ev)}
+                className="p-4 rounded-xl border border-slate-200 bg-white hover:border-brand-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group space-y-3"
+              >
+                {/* Card Header: Skill, Type, and Verified Status Badge */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="info" size="sm" className="font-bold">
+                        {ev.skillName}
+                      </Badge>
+                      <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
+                        {ev.type === 'PROJECT' && <BookOpen className="w-3 h-3 text-indigo-600" />}
+                        {ev.type === 'GITHUB' && <FolderGit2 className="w-3 h-3 text-emerald-600" />}
+                        {ev.type === 'CERTIFICATE' && <Award className="w-3 h-3 text-amber-600" />}
+                        {ev.type === 'ASSESSMENT' && <ShieldCheck className="w-3 h-3 text-brand-600" />}
+                        {ev.type === 'PROJECT' ? 'Project' : ev.type === 'GITHUB' ? 'GitHub Audit' : ev.type === 'CERTIFICATE' ? 'Credential' : 'Assessment'}
+                      </span>
+                    </div>
+                    <EvidenceBadge status={ev.status} size="sm" />
+                  </div>
+
+                  {/* Clean Title */}
+                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-brand-600 transition-colors line-clamp-2 leading-snug">
+                    {ev.title}
+                  </h3>
+                </div>
+
+                {/* Dynamic Score and Credibility Indicators */}
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  {ev.score && (
+                    <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                      {ev.score}
+                    </span>
+                  )}
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>{ev.credibilityScore || 94}% Credibility</span>
+                  </span>
+                  {ev.certificateFileName && (
+                    <span className="text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      Doc Attached
+                    </span>
+                  )}
+                </div>
+
+                {/* Action Banner for unverified evidence */}
+                {ev.status === 'NEEDS_REVIEW' && (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/student/assessments');
+                    }}
+                    className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200 hover:bg-amber-100/70 transition-colors flex items-center justify-between text-xs text-amber-900 group/btn"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span className="text-[11px] font-semibold">Take skill assessment to verify</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-amber-700 flex items-center gap-1 group-hover/btn:translate-x-0.5 transition-transform">
+                      <span>Assess Now</span>
+                      <ArrowRight className="w-3 h-3" />
                     </span>
                   </div>
-                  <EvidenceBadge status={ev.status} size="sm" />
-                </div>
-
-                {/* Clean Title */}
-                <h3 className="text-sm font-bold text-slate-900 group-hover:text-brand-600 transition-colors line-clamp-2 leading-snug">
-                  {ev.title}
-                </h3>
-              </div>
-
-              {/* Dynamic Score and Credibility Indicators */}
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                {ev.score && (
-                  <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
-                    {ev.score}
-                  </span>
                 )}
-                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  <span>{ev.credibilityScore || 94}% Credibility</span>
-                </span>
-                {ev.certificateFileName && (
-                  <span className="text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    Doc Attached
-                  </span>
-                )}
-              </div>
 
-              {/* Action Banner for unverified evidence */}
-              {ev.status === 'NEEDS_REVIEW' && (
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate('/student/assessments');
-                  }}
-                  className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200 hover:bg-amber-100/70 transition-colors flex items-center justify-between text-xs text-amber-900 group/btn"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span className="text-[11px] font-semibold">Take skill assessment to verify</span>
-                  </div>
-                  <span className="text-[11px] font-bold text-amber-700 flex items-center gap-1 group-hover/btn:translate-x-0.5 transition-transform">
-                    <span>Assess Now</span>
-                    <ArrowRight className="w-3 h-3" />
+                {/* Card Footer: Date and Inspect Details Action */}
+                <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <span className="text-[11px] text-slate-400">
+                    Recorded: {ev.date}
+                  </span>
+                  <span className="text-brand-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                    <span>Inspect Details</span>
+                    <span className="text-sm">→</span>
                   </span>
                 </div>
-              )}
-
-              {/* Card Footer: Date and Inspect Details Action */}
-              <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                <span className="text-[11px] text-slate-400">
-                  Recorded: {ev.date}
-                </span>
-                <span className="text-brand-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-                  <span>Inspect Details</span>
-                  <span className="text-sm">→</span>
-                </span>
               </div>
-            </div>
+            </MotionStaggerItem>
           ))}
-        </div>
+        </MotionStagger>
       )}
 
       {/* Modals */}

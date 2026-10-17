@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { MatchScoreBar } from '@/components/data-display/MatchScoreBar';
+import { MotionFadeIn, MotionStagger, MotionStaggerItem } from '@/components/motion/MotionFadeIn';
 import { useToast } from '@/components/ui/Toast';
 import { placementApi } from '@/lib/api/placementApi';
 import { MatchingResult, Campaign } from '@/types';
@@ -117,44 +118,46 @@ export const BatchRankingShortlist: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              Deterministic Batch Ranking & Shortlist Review
-            </h1>
-            <Badge variant="purple" size="md">
-              PS6 Core Demonstration
-            </Badge>
+      <MotionFadeIn direction="down" duration={0.4}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                Deterministic Batch Ranking & Shortlist Review
+              </h1>
+              <Badge variant="purple" size="md">
+                PS6 Core Demonstration
+              </Badge>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Evaluate entire cohorts against normalized job requirements using transparent, reproducible rules.
+            </p>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Evaluate entire cohorts against normalized job requirements using transparent, reproducible rules.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchRanking(selectedJobId)}
-            className="gap-1.5 font-semibold"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Re-run Ranking</span>
-          </Button>
+          <div className="flex items-center gap-2.5 self-start sm:self-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchRanking(selectedJobId)}
+              className="gap-1.5 font-semibold"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Re-run Ranking</span>
+            </Button>
 
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleReleaseShortlist}
-            isLoading={isReleasing}
-            className="gap-1.5 font-bold shadow-sm"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Approve & Release Shortlist</span>
-          </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleReleaseShortlist}
+              isLoading={isReleasing}
+              className="gap-1.5 font-bold shadow-sm"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Approve & Release Shortlist</span>
+            </Button>
+          </div>
         </div>
-      </div>
+      </MotionFadeIn>
 
       {/* Target Job & Policy Selector */}
       <Card className="p-4 bg-slate-900 text-white border-slate-800">
